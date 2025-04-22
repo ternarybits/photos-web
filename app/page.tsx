@@ -6,7 +6,10 @@ import Link from 'next/link'; // Add import for Link
 
 // Initialize the Photos SDK client
 // Note: Authentication details might be needed later.
-const photosClient = new Photos();
+// Add a dummy apiKey to satisfy the SDK's requirement
+const photosClient = new Photos({
+  apiKey: 'dummy-api-key', // Provide a placeholder API key
+});
 
 // --- Type Definitions (Ideally import from SDK) ---
 interface Album {
@@ -35,6 +38,7 @@ interface LeftNavProps {
   selectedAlbumId: string | null;
   onSelectAlbum: (albumId: string | null) => void;
   isLoadingAlbums: boolean;
+  onNewAlbumClick: () => void;
 }
 
 interface AssetThumbnailProps {
@@ -47,6 +51,8 @@ interface AssetGridProps {
 }
 
 interface MainContentProps {
+  selectedAlbumId: string | null;
+  onUpdateAlbumName: (albumId: string, newName: string) => Promise<boolean>;
   assets: Asset[];
   title: string;
   isLoadingAssets: boolean;
@@ -100,11 +106,21 @@ const AlbumList: React.FC<AlbumListProps> = ({ albums, selectedAlbumId, onSelect
 );
 
 // Define LeftNav, which uses AlbumList
-const LeftNav: React.FC<LeftNavProps> = ({ albums, selectedAlbumId, onSelectAlbum, isLoadingAlbums }) => (
+const LeftNav: React.FC<LeftNavProps> = ({
+    albums,
+    selectedAlbumId,
+    onSelectAlbum,
+    isLoadingAlbums,
+    onNewAlbumClick
+}) => (
   <nav className="w-64 bg-gray-50 p-4 border-r flex flex-col flex-shrink-0">
-    <button className="w-full bg-blue-500 text-white p-2 rounded mb-4 flex-shrink-0 text-sm">New Album</button>
+    <button
+        className="w-full bg-blue-500 text-white p-2 rounded mb-4 flex-shrink-0 text-sm hover:bg-blue-600"
+        onClick={onNewAlbumClick}
+    >
+        New Album
+    </button>
     <h2 className="text-lg font-medium mb-2 flex-shrink-0">Albums</h2>
-    {/* Now AlbumList is defined */}
     <AlbumList
         albums={albums}
         selectedAlbumId={selectedAlbumId}
@@ -155,8 +171,10 @@ const AssetGrid: React.FC<AssetGridProps> = ({ assets, isLoadingAssets }) => {
     );
 };
 
-// Updated MainContent to include filter/sort controls
+// Updated MainContent to handle inline title editing
 const MainContent: React.FC<MainContentProps> = ({
+    selectedAlbumId,
+    onUpdateAlbumName,
     assets,
     title,
     isLoadingAssets,
@@ -164,48 +182,137 @@ const MainContent: React.FC<MainContentProps> = ({
     stackSimilar,
     onSortChange,
     onStackToggle
-}) => (
-   <main className="flex-1 p-6 overflow-y-auto flex flex-col">
-    <h2 className="text-2xl font-semibold mb-4 flex-shrink-0">{title}</h2>
-    <div className="flex justify-between items-center mb-4 border-b pb-2 flex-shrink-0">
-      {/* Filter/Sort controls */}
-      <div className="flex gap-4 text-sm">
-        {/* Sort Buttons */}
-        <div className="flex items-center gap-1">
-            <span className="text-gray-600">Sort:</span>
-             <button
-                onClick={() => onSortChange('date')}
-                className={`px-2 py-1 rounded ${sortBy === 'date' ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'}`}
-             >
-                By Date
-             </button>
-             <button
-                 onClick={() => onSortChange('quality')}
-                 className={`px-2 py-1 rounded ${sortBy === 'quality' ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'}`}
-              >
-                 By Quality
-             </button>
-        </div>
-         {/* Stack Toggle Button */}
-         <div className="flex items-center gap-1">
-             <span className="text-gray-600">Stack Similar:</span>
-             <button
-                 onClick={onStackToggle}
-                 className={`px-2 py-1 rounded ${stackSimilar ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'}`}
-             >
-                 {stackSimilar ? 'On' : 'Off'}
-             </button>
+}) => {
+    // State for inline editing
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [editedTitle, setEditedTitle] = useState(title);
+    const inputRef = React.useRef<HTMLInputElement>(null); // Ref for focusing input
+
+    // Update local editedTitle if the main title prop changes (e.g., album changes)
+    useEffect(() => {
+        setEditedTitle(title);
+    }, [title]);
+
+    // Focus input when editing starts
+    useEffect(() => {
+        if (isEditingTitle) {
+            inputRef.current?.focus();
+            inputRef.current?.select(); // Select text for easy replacement
+        }
+    }, [isEditingTitle]);
+
+    const handleTitleClick = () => {
+        // Only allow editing if an album is selected (not "All Photos")
+        if (selectedAlbumId) {
+            setEditedTitle(title); // Reset edit field to current title
+            setIsEditingTitle(true);
+        }
+    };
+
+    const handleTitleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setEditedTitle(event.target.value);
+    };
+
+    const saveTitle = async () => {
+        if (!selectedAlbumId) return; // Should not happen if editing started correctly
+
+        const originalTitle = title;
+        setIsEditingTitle(false); // Exit editing mode immediately for better UX
+
+        if (editedTitle.trim() === originalTitle) {
+            return; // No change, do nothing
+        }
+
+        const success = await onUpdateAlbumName(selectedAlbumId, editedTitle.trim());
+
+        if (!success) {
+            // Revert local state if update failed
+            setEditedTitle(originalTitle);
+            // Error message is handled in HomePage state
+        }
+        // If successful, HomePage will re-fetch and pass down the new title via props
+    };
+
+    const handleInputBlur = () => {
+        // Save on blur
+        saveTitle();
+    };
+
+    const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Enter') {
+            saveTitle();
+        } else if (event.key === 'Escape') {
+            setEditedTitle(title); // Revert changes
+            setIsEditingTitle(false); // Exit editing mode
+        }
+    };
+
+    return (
+       <main className="flex-1 p-6 overflow-y-auto flex flex-col">
+        {/* Title Section - Conditional Rendering */}
+        <div className="mb-4 flex-shrink-0">
+           {isEditingTitle ? (
+                <input
+                    ref={inputRef}
+                    type="text"
+                    value={editedTitle}
+                    onChange={handleTitleChange}
+                    onBlur={handleInputBlur}
+                    onKeyDown={handleInputKeyDown}
+                    className="text-2xl font-semibold p-1 border border-blue-500 rounded w-full sm:w-auto" // Basic styling
+                 />
+           ) : (
+               <h2
+                  className={`text-2xl font-semibold ${selectedAlbumId ? 'cursor-pointer hover:bg-gray-100 rounded px-1' : ''}`} // Add cursor/hover only if editable
+                  onClick={handleTitleClick}
+                  title={selectedAlbumId ? "Click to rename album" : ""} // Tooltip
+               >
+                   {title}
+               </h2>
+           )}
          </div>
-      </div>
-      {/* Placeholder for actions */}
-      <button className="bg-green-500 text-white p-2 rounded text-sm">Add Photos</button>
-    </div>
-    {/* Use AssetGrid component */}
-    <div className="flex-grow overflow-y-auto">
-        <AssetGrid assets={assets} isLoadingAssets={isLoadingAssets} />
-    </div>
-   </main>
-);
+
+        {/* Controls Row */}
+        <div className="flex justify-between items-center mb-4 border-b pb-2 flex-shrink-0">
+          {/* Filter/Sort controls */}
+          <div className="flex gap-4 text-sm">
+            {/* Sort Buttons */}
+            <div className="flex items-center gap-1">
+                <span className="text-gray-600">Sort:</span>
+                 <button
+                    onClick={() => onSortChange('date')}
+                    className={`px-2 py-1 rounded ${sortBy === 'date' ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'}`}
+                 >
+                    By Date
+                 </button>
+                 <button
+                     onClick={() => onSortChange('quality')}
+                     className={`px-2 py-1 rounded ${sortBy === 'quality' ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'}`}
+                  >
+                     By Quality
+                 </button>
+            </div>
+             {/* Stack Toggle Button */}
+             <div className="flex items-center gap-1">
+                 <span className="text-gray-600">Stack Similar:</span>
+                 <button
+                     onClick={onStackToggle}
+                     className={`px-2 py-1 rounded ${stackSimilar ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'}`}
+                 >
+                     {stackSimilar ? 'On' : 'Off'}
+                 </button>
+             </div>
+          </div>
+          {/* Placeholder for actions */}
+          <button className="bg-green-500 text-white p-2 rounded text-sm">Add Photos</button>
+        </div>
+        {/* Use AssetGrid component */}
+        <div className="flex-grow overflow-y-auto">
+            <AssetGrid assets={assets} isLoadingAssets={isLoadingAssets} />
+        </div>
+       </main>
+    );
+};
 
 export default function HomePage() {
   // Indicate this is a client component
@@ -223,17 +330,14 @@ export default function HomePage() {
   const [sortBy, setSortBy] = useState<'date' | 'quality'>('date'); // Default to date
   const [stackSimilar, setStackSimilar] = useState(false); // Default to off
 
-  // Fetch albums on mount
-  useEffect(() => {
-    const fetchAlbums = async () => {
-      setLoadingAlbums(true);
-      setError(null);
+  // Function to fetch albums (can be reused)
+  const fetchAlbums = async (showLoading = true) => {
+      if (showLoading) setLoadingAlbums(true);
+      // Clear only album-related errors
+      if (error === "Failed to load albums." || error?.startsWith("Failed to create album")) setError(null);
       try {
-        const fetchedAlbums: Album[] = []; // Use Album type
-        // Use auto-pagination to get all albums
-        // Need to cast the result if the SDK doesn't provide typed iterators
+        const fetchedAlbums: Album[] = [];
         for await (const album of photosClient.albums.list()) {
-           // Assuming 'album' matches the Album interface or needs casting
            fetchedAlbums.push(album as Album);
         }
         fetchedAlbums.sort((a, b) => a.name.localeCompare(b.name));
@@ -241,42 +345,70 @@ export default function HomePage() {
       } catch (err) {
         console.error("Error fetching albums:", err);
         setError("Failed to load albums.");
+        setAlbums([]); // Clear albums on fetch error
       } finally {
-        setLoadingAlbums(false);
+        if (showLoading) setLoadingAlbums(false);
       }
     };
-    fetchAlbums();
-  }, []);
 
-  // Fetch assets when selectedAlbumId changes
-   useEffect(() => {
-     const fetchAssets = async () => {
-       setLoadingAssets(true);
-       setError(null);
-       const fetchedAssets: Asset[] = []; // Use Asset type
-       try {
-         const listParams = selectedAlbumId ? { album_id: selectedAlbumId } : {};
-         // Use auto-pagination to get all assets
-         // Need to cast the result if the SDK doesn't provide typed iterators
-         for await (const asset of photosClient.assets.list(listParams)) {
-           // Assuming 'asset' matches the Asset interface or needs casting
-           fetchedAssets.push(asset as Asset);
-         }
-         setAssets(fetchedAssets);
-       } catch (err) {
-         console.error("Error fetching assets:", err);
-         setError(`Failed to load assets.${selectedAlbumId ? ` Album ID: ${selectedAlbumId}`: ''}`);
-         setAssets([]); // Clear assets on error
-       } finally {
-         setLoadingAssets(false);
-       }
-     };
-     // Only fetch if albums have loaded (or initially)
-     // Avoids fetching assets for potentially non-existent album ID if albums load slowly
-     if (!loadingAlbums) {
+  // Fetch albums on mount
+  useEffect(() => {
+    fetchAlbums();
+  }, []); // Run only once on mount
+
+
+  // Fetch assets when selectedAlbumId or loadingAlbums changes
+  useEffect(() => {
+    const fetchAssets = async () => {
+        // Clear only asset-related errors
+        if (error?.startsWith("Failed to load assets")) setError(null);
+        setLoadingAssets(true);
+        const fetchedAssets: Asset[] = [];
+        try {
+            const listParams = selectedAlbumId ? { album_id: selectedAlbumId } : {};
+            for await (const asset of photosClient.assets.list(listParams)) {
+                fetchedAssets.push(asset as Asset);
+            }
+            setAssets(fetchedAssets);
+        } catch (err) {
+            console.error("Error fetching assets:", err);
+            setError(`Failed to load assets.${selectedAlbumId ? ` Album ID: ${selectedAlbumId}`: ''}`);
+            setAssets([]);
+        } finally {
+            setLoadingAssets(false);
+        }
+    };
+    if (!loadingAlbums) { // Ensure albums (potentially empty list) are loaded before fetching assets
         fetchAssets();
-     }
+    }
    }, [selectedAlbumId, loadingAlbums]); // Re-run when selectedAlbumId or loadingAlbums changes
+
+
+   // Handler for the "New Album" button click
+   const handleNewAlbumClick = async () => {
+       // Use a default name instead of prompting
+       const newAlbumName = "Untitled Album";
+
+       // Optional: Add some loading indicator state here
+       setError(null); // Clear previous errors
+       try {
+           console.log(`Creating album: ${newAlbumName}`);
+           // Create album with the default name
+           const newAlbum = await photosClient.albums.create({ name: newAlbumName });
+           console.log("Album created:", newAlbum);
+
+           // Re-fetch the list and select the new album
+           await fetchAlbums(false);
+           setSelectedAlbumId(newAlbum.id);
+
+       } catch (err) {
+           console.error("Error creating album:", err);
+           setError(`Failed to create album "${newAlbumName}".`);
+           // Handle specific API errors if needed
+       } finally {
+           // Optional: Reset loading indicator state here
+       }
+   };
 
 
    const handleSelectAlbum = (albumId: string | null) => {
@@ -285,20 +417,46 @@ export default function HomePage() {
      }
    };
 
-   // Handlers for sort and stack changes
    const handleSortChange = (newSortBy: 'date' | 'quality') => {
        setSortBy(newSortBy);
-       // TODO: Re-sort existing assets or potentially re-fetch with sort param if API supports it
        console.log("Sort changed to:", newSortBy);
    };
 
    const handleStackToggle = () => {
        setStackSimilar(prev => !prev);
-       // TODO: Apply/remove stacking logic
        console.log("Stack similar toggled to:", !stackSimilar);
    };
 
-   // Determine the title for MainContent
+   // Function to update an album's name via SDK and refresh state
+   const updateAlbumName = async (albumId: string, newName: string) => {
+     // Basic validation
+     if (!newName || !newName.trim()) {
+         alert("Album name cannot be empty.");
+         return false; // Indicate failure
+     }
+     // Prevent unnecessary API call if name hasn't changed (optional)
+     const currentAlbum = albums.find(a => a.id === albumId);
+     if (currentAlbum && currentAlbum.name === newName.trim()) {
+         return true; // Indicate success (no change needed)
+     }
+
+     setError(null); // Clear previous errors
+     try {
+         console.log(`Updating album ${albumId} to name: ${newName.trim()}`);
+         await photosClient.albums.update(albumId, { name: newName.trim() });
+         console.log(`Album ${albumId} updated.`);
+
+         // Refresh the album list to show the change
+         await fetchAlbums(false); // Re-fetch without showing main loading spinner
+         return true; // Indicate success
+
+     } catch (err) {
+         console.error(`Error updating album ${albumId}:`, err);
+         setError(`Failed to update album name for ID: ${albumId}.`);
+         return false; // Indicate failure
+     }
+   };
+
    const selectedAlbum = albums.find(album => album.id === selectedAlbumId);
    const mainTitle = selectedAlbum ? selectedAlbum.name : "All Photos";
 
@@ -308,15 +466,16 @@ export default function HomePage() {
        <Header />
        {error && <div className="p-2 bg-red-100 text-red-700 text-center text-sm flex-shrink-0">{error}</div>}
        <div className="flex flex-1 overflow-hidden">
-        {/* TODO: Add loading state for albums */}
         <LeftNav
            albums={albums}
            selectedAlbumId={selectedAlbumId}
            onSelectAlbum={handleSelectAlbum}
            isLoadingAlbums={loadingAlbums}
+           onNewAlbumClick={handleNewAlbumClick}
          />
-         {/* TODO: Add loading state for assets */}
          <MainContent
+            selectedAlbumId={selectedAlbumId}
+            onUpdateAlbumName={updateAlbumName}
             assets={assets}
             title={mainTitle}
             isLoadingAssets={loadingAssets}

@@ -7,7 +7,9 @@ import Photos from 'photos'; // Assuming the SDK package is named 'photos'
 import Link from 'next/link'; // For back button
 
 // Initialize the Photos SDK client (can potentially share instance later)
-const photosClient = new Photos();
+const photosClient = new Photos({
+  apiKey: 'dummy-api-key', // Provide a placeholder API key
+});
 
 // Simple type for Asset Detail - expand as needed
 interface AssetDetail extends Asset {
