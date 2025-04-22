@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Photos from 'photos'; // Assuming the SDK package is named 'photos'
+import Link from 'next/link'; // Add import for Link
 
 // Initialize the Photos SDK client
 // Note: Authentication details might be needed later.
@@ -49,6 +50,10 @@ interface MainContentProps {
   assets: Asset[];
   title: string;
   isLoadingAssets: boolean;
+  sortBy: 'date' | 'quality';
+  stackSimilar: boolean;
+  onSortChange: (sortBy: 'date' | 'quality') => void;
+  onStackToggle: () => void;
 }
 
 // --- Components ---
@@ -111,17 +116,18 @@ const LeftNav: React.FC<LeftNavProps> = ({ albums, selectedAlbumId, onSelectAlbu
 
 // Define AssetThumbnail component
 const AssetThumbnail: React.FC<AssetThumbnailProps> = ({ asset }) => {
-    // TODO: Add click handler to navigate to detail view
     // TODO: Display actual thumbnail image/video icon
     return (
-        <div
-            key={asset.id}
-            className="bg-gray-200 aspect-square flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:ring-2 ring-blue-500 rounded overflow-hidden"
-            title={`Asset ID: ${asset.id}`} // Tooltip for ID
-        >
-            {/* Placeholder content */}
-            <span className="block p-1 text-center">Asset {asset.id.substring(0, 6)}...</span>
-         </div>
+        <Link href={`/asset/${asset.id}`} passHref>
+            <div
+                // key={asset.id} // Key should be on the Link or the mapped element, not here
+                className="bg-gray-200 aspect-square flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:ring-2 ring-blue-500 rounded overflow-hidden"
+                title={`Asset ID: ${asset.id}`} // Tooltip for ID
+            >
+                {/* Placeholder content */}
+                <span className="block p-1 text-center">Asset {asset.id.substring(0, 6)}...</span>
+             </div>
+        </Link>
     );
 };
 
@@ -142,31 +148,63 @@ const AssetGrid: React.FC<AssetGridProps> = ({ assets, isLoadingAssets }) => {
     return (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {assets.map((asset: Asset) => (
+                // Move key to the Link component which is the direct child of map
                 <AssetThumbnail key={asset.id} asset={asset} />
             ))}
         </div>
     );
 };
 
-// Define MainContent, which uses AssetGrid
-const MainContent: React.FC<MainContentProps> = ({ assets, title, isLoadingAssets }) => (
+// Updated MainContent to include filter/sort controls
+const MainContent: React.FC<MainContentProps> = ({
+    assets,
+    title,
+    isLoadingAssets,
+    sortBy,
+    stackSimilar,
+    onSortChange,
+    onStackToggle
+}) => (
    <main className="flex-1 p-6 overflow-y-auto flex flex-col">
     <h2 className="text-2xl font-semibold mb-4 flex-shrink-0">{title}</h2>
     <div className="flex justify-between items-center mb-4 border-b pb-2 flex-shrink-0">
-      {/* Placeholder for filters */}
-      <div className="flex gap-4">
-         {/* TODO: Implement Filter/Sort state and buttons */}
-        <span className="text-sm text-gray-600">Sort: By Date | By Quality</span>
-        <span className="text-sm text-gray-600">Stack Similar: Off | On</span>
+      {/* Filter/Sort controls */}
+      <div className="flex gap-4 text-sm">
+        {/* Sort Buttons */}
+        <div className="flex items-center gap-1">
+            <span className="text-gray-600">Sort:</span>
+             <button
+                onClick={() => onSortChange('date')}
+                className={`px-2 py-1 rounded ${sortBy === 'date' ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'}`}
+             >
+                By Date
+             </button>
+             <button
+                 onClick={() => onSortChange('quality')}
+                 className={`px-2 py-1 rounded ${sortBy === 'quality' ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'}`}
+              >
+                 By Quality
+             </button>
+        </div>
+         {/* Stack Toggle Button */}
+         <div className="flex items-center gap-1">
+             <span className="text-gray-600">Stack Similar:</span>
+             <button
+                 onClick={onStackToggle}
+                 className={`px-2 py-1 rounded ${stackSimilar ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'}`}
+             >
+                 {stackSimilar ? 'On' : 'Off'}
+             </button>
+         </div>
       </div>
       {/* Placeholder for actions */}
       <button className="bg-green-500 text-white p-2 rounded text-sm">Add Photos</button>
     </div>
     {/* Use AssetGrid component */}
-    <div className="flex-grow overflow-y-auto"> {/* Allow grid to scroll independently if needed */}
+    <div className="flex-grow overflow-y-auto">
         <AssetGrid assets={assets} isLoadingAssets={isLoadingAssets} />
     </div>
-  </main>
+   </main>
 );
 
 export default function HomePage() {
@@ -180,6 +218,10 @@ export default function HomePage() {
   const [loadingAlbums, setLoadingAlbums] = useState(true);
   const [loadingAssets, setLoadingAssets] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Add state for sorting and stacking
+  const [sortBy, setSortBy] = useState<'date' | 'quality'>('date'); // Default to date
+  const [stackSimilar, setStackSimilar] = useState(false); // Default to off
 
   // Fetch albums on mount
   useEffect(() => {
@@ -243,6 +285,19 @@ export default function HomePage() {
      }
    };
 
+   // Handlers for sort and stack changes
+   const handleSortChange = (newSortBy: 'date' | 'quality') => {
+       setSortBy(newSortBy);
+       // TODO: Re-sort existing assets or potentially re-fetch with sort param if API supports it
+       console.log("Sort changed to:", newSortBy);
+   };
+
+   const handleStackToggle = () => {
+       setStackSimilar(prev => !prev);
+       // TODO: Apply/remove stacking logic
+       console.log("Stack similar toggled to:", !stackSimilar);
+   };
+
    // Determine the title for MainContent
    const selectedAlbum = albums.find(album => album.id === selectedAlbumId);
    const mainTitle = selectedAlbum ? selectedAlbum.name : "All Photos";
@@ -265,6 +320,10 @@ export default function HomePage() {
             assets={assets}
             title={mainTitle}
             isLoadingAssets={loadingAssets}
+            sortBy={sortBy}
+            stackSimilar={stackSimilar}
+            onSortChange={handleSortChange}
+            onStackToggle={handleStackToggle}
          />
       </div>
     </div>
