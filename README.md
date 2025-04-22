@@ -27,7 +27,7 @@ There should be a asset detail view:
 * There are overlaid buttons at the top right corner to show a sidebar with photo metadata and to download the asset.  For videos, display the video with appropriate playback controls.  For motion photos, automatically play the motion and include a control to pause it.
 
 Other notes:
-* For now, there's no login or authentication functionality.  Just take users directly to this dashboard page.  Load albums with the Photos SDK.  Default to showing the most recent album.  When an album is selected, highlight it in the navigation and load the associated assets.
+* For now, there's no login or authentication functionality.  Just take users directly to this dashboard page.  Load albums with the Photos SDK.  When an album is selected, highlight it in the navigation and load the associated assets.
 
 * For now, there's no way to select groups of photos in the dashboard view, but the code should be structured to make that easy to add in the future.
 

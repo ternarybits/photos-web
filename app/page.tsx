@@ -1,103 +1,272 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+import React, { useState, useEffect } from 'react';
+import Photos from 'photos'; // Assuming the SDK package is named 'photos'
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+// Initialize the Photos SDK client
+// Note: Authentication details might be needed later.
+const photosClient = new Photos();
+
+// --- Type Definitions (Ideally import from SDK) ---
+interface Album {
+  id: string;
+  name: string;
+  // Add other relevant album properties if known
+}
+
+interface Asset {
+  id: string;
+  // Add other relevant asset properties if known (e.g., thumbnail_url, type)
+}
+
+// --- Component Prop Types ---
+// Removed HeaderProps
+
+interface AlbumListProps {
+  albums: Album[];
+  selectedAlbumId: string | null;
+  onSelectAlbum: (albumId: string | null) => void;
+  isLoading: boolean;
+}
+
+interface LeftNavProps {
+  albums: Album[];
+  selectedAlbumId: string | null;
+  onSelectAlbum: (albumId: string | null) => void;
+  isLoadingAlbums: boolean;
+}
+
+interface AssetThumbnailProps {
+    asset: Asset;
+}
+
+interface AssetGridProps {
+    assets: Asset[];
+    isLoadingAssets: boolean;
+}
+
+interface MainContentProps {
+  assets: Asset[];
+  title: string;
+  isLoadingAssets: boolean;
+}
+
+// --- Components ---
+
+// Define Header without FC type or empty props interface
+const Header = () => (
+  <header className="bg-gray-100 p-4 border-b">
+    <h1 className="text-xl font-semibold">Photos</h1>
+    {/* Placeholder for profile/settings */}
+    <div className="absolute top-4 right-4">Profile</div>
+  </header>
+);
+
+// Define AlbumList component before LeftNav
+const AlbumList: React.FC<AlbumListProps> = ({ albums, selectedAlbumId, onSelectAlbum, isLoading }) => (
+   <ul className="overflow-y-auto flex-grow">
+    {isLoading ? (
+      <li className="p-1 text-gray-500 italic">Loading albums...</li>
+    ) : (
+      <>
+        <li
+          key="all"
+          className={`p-1 hover:bg-gray-200 rounded cursor-pointer ${!selectedAlbumId ? 'bg-gray-200 font-semibold' : ''}`}
+          onClick={() => onSelectAlbum(null)}
+        >
+          All Photos
+        </li>
+        {albums.map((album) => (
+          <li
+            key={album.id}
+            className={`p-1 hover:bg-gray-200 rounded cursor-pointer truncate ${selectedAlbumId === album.id ? 'bg-gray-200 font-semibold' : ''}`}
+            onClick={() => onSelectAlbum(album.id)}
+            title={album.name}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            {album.name}
+          </li>
+        ))}
+        {albums.length === 0 && !isLoading && (
+            <li className="p-1 text-gray-500 italic">No albums found.</li>
+        )}
+      </>
+    )}
+  </ul>
+);
+
+// Define LeftNav, which uses AlbumList
+const LeftNav: React.FC<LeftNavProps> = ({ albums, selectedAlbumId, onSelectAlbum, isLoadingAlbums }) => (
+  <nav className="w-64 bg-gray-50 p-4 border-r flex flex-col flex-shrink-0">
+    <button className="w-full bg-blue-500 text-white p-2 rounded mb-4 flex-shrink-0 text-sm">New Album</button>
+    <h2 className="text-lg font-medium mb-2 flex-shrink-0">Albums</h2>
+    {/* Now AlbumList is defined */}
+    <AlbumList
+        albums={albums}
+        selectedAlbumId={selectedAlbumId}
+        onSelectAlbum={onSelectAlbum}
+        isLoading={isLoadingAlbums}
+    />
+  </nav>
+);
+
+// Define AssetThumbnail component
+const AssetThumbnail: React.FC<AssetThumbnailProps> = ({ asset }) => {
+    // TODO: Add click handler to navigate to detail view
+    // TODO: Display actual thumbnail image/video icon
+    return (
+        <div
+            key={asset.id}
+            className="bg-gray-200 aspect-square flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:ring-2 ring-blue-500 rounded overflow-hidden"
+            title={`Asset ID: ${asset.id}`} // Tooltip for ID
+        >
+            {/* Placeholder content */}
+            <span className="block p-1 text-center">Asset {asset.id.substring(0, 6)}...</span>
+         </div>
+    );
+};
+
+// Define AssetGrid component
+const AssetGrid: React.FC<AssetGridProps> = ({ assets, isLoadingAssets }) => {
+    if (isLoadingAssets) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <p className="text-gray-500">Loading photos...</p> {/* Replace with spinner later */}
+            </div>
+        );
+    }
+
+    if (assets.length === 0) {
+        return <p className="col-span-full text-center text-gray-500 mt-4">No photos found.</p>;
+    }
+
+    return (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {assets.map((asset: Asset) => (
+                <AssetThumbnail key={asset.id} asset={asset} />
+            ))}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+    );
+};
+
+// Define MainContent, which uses AssetGrid
+const MainContent: React.FC<MainContentProps> = ({ assets, title, isLoadingAssets }) => (
+   <main className="flex-1 p-6 overflow-y-auto flex flex-col">
+    <h2 className="text-2xl font-semibold mb-4 flex-shrink-0">{title}</h2>
+    <div className="flex justify-between items-center mb-4 border-b pb-2 flex-shrink-0">
+      {/* Placeholder for filters */}
+      <div className="flex gap-4">
+         {/* TODO: Implement Filter/Sort state and buttons */}
+        <span className="text-sm text-gray-600">Sort: By Date | By Quality</span>
+        <span className="text-sm text-gray-600">Stack Similar: Off | On</span>
+      </div>
+      {/* Placeholder for actions */}
+      <button className="bg-green-500 text-white p-2 rounded text-sm">Add Photos</button>
+    </div>
+    {/* Use AssetGrid component */}
+    <div className="flex-grow overflow-y-auto"> {/* Allow grid to scroll independently if needed */}
+        <AssetGrid assets={assets} isLoadingAssets={isLoadingAssets} />
+    </div>
+  </main>
+);
+
+export default function HomePage() {
+  // Indicate this is a client component
+  'use client';
+
+  // Use defined types for state
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
+  const [loadingAlbums, setLoadingAlbums] = useState(true);
+  const [loadingAssets, setLoadingAssets] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch albums on mount
+  useEffect(() => {
+    const fetchAlbums = async () => {
+      setLoadingAlbums(true);
+      setError(null);
+      try {
+        const fetchedAlbums: Album[] = []; // Use Album type
+        // Use auto-pagination to get all albums
+        // Need to cast the result if the SDK doesn't provide typed iterators
+        for await (const album of photosClient.albums.list()) {
+           // Assuming 'album' matches the Album interface or needs casting
+           fetchedAlbums.push(album as Album);
+        }
+        fetchedAlbums.sort((a, b) => a.name.localeCompare(b.name));
+        setAlbums(fetchedAlbums);
+      } catch (err) {
+        console.error("Error fetching albums:", err);
+        setError("Failed to load albums.");
+      } finally {
+        setLoadingAlbums(false);
+      }
+    };
+    fetchAlbums();
+  }, []);
+
+  // Fetch assets when selectedAlbumId changes
+   useEffect(() => {
+     const fetchAssets = async () => {
+       setLoadingAssets(true);
+       setError(null);
+       const fetchedAssets: Asset[] = []; // Use Asset type
+       try {
+         const listParams = selectedAlbumId ? { album_id: selectedAlbumId } : {};
+         // Use auto-pagination to get all assets
+         // Need to cast the result if the SDK doesn't provide typed iterators
+         for await (const asset of photosClient.assets.list(listParams)) {
+           // Assuming 'asset' matches the Asset interface or needs casting
+           fetchedAssets.push(asset as Asset);
+         }
+         setAssets(fetchedAssets);
+       } catch (err) {
+         console.error("Error fetching assets:", err);
+         setError(`Failed to load assets.${selectedAlbumId ? ` Album ID: ${selectedAlbumId}`: ''}`);
+         setAssets([]); // Clear assets on error
+       } finally {
+         setLoadingAssets(false);
+       }
+     };
+     // Only fetch if albums have loaded (or initially)
+     // Avoids fetching assets for potentially non-existent album ID if albums load slowly
+     if (!loadingAlbums) {
+        fetchAssets();
+     }
+   }, [selectedAlbumId, loadingAlbums]); // Re-run when selectedAlbumId or loadingAlbums changes
+
+
+   const handleSelectAlbum = (albumId: string | null) => {
+     if (albumId !== selectedAlbumId) {
+        setSelectedAlbumId(albumId);
+     }
+   };
+
+   // Determine the title for MainContent
+   const selectedAlbum = albums.find(album => album.id === selectedAlbumId);
+   const mainTitle = selectedAlbum ? selectedAlbum.name : "All Photos";
+
+
+  return (
+    <div className="flex flex-col h-screen bg-white">
+       <Header />
+       {error && <div className="p-2 bg-red-100 text-red-700 text-center text-sm flex-shrink-0">{error}</div>}
+       <div className="flex flex-1 overflow-hidden">
+        {/* TODO: Add loading state for albums */}
+        <LeftNav
+           albums={albums}
+           selectedAlbumId={selectedAlbumId}
+           onSelectAlbum={handleSelectAlbum}
+           isLoadingAlbums={loadingAlbums}
+         />
+         {/* TODO: Add loading state for assets */}
+         <MainContent
+            assets={assets}
+            title={mainTitle}
+            isLoadingAssets={loadingAssets}
+         />
+      </div>
     </div>
   );
 }
