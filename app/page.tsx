@@ -38,6 +38,7 @@ interface AssetThumbnailProps {
 interface AssetGridProps {
     assets: Photos.AssetResponse[];
     isLoadingAssets: boolean;
+    sortBy: 'date' | 'quality';
 }
 
 interface MainContentProps {
@@ -154,7 +155,7 @@ const AssetThumbnail: React.FC<AssetThumbnailProps> = ({ asset }) => {
 };
 
 // Define AssetGrid component
-const AssetGrid: React.FC<AssetGridProps> = ({ assets, isLoadingAssets }) => {
+const AssetGrid: React.FC<AssetGridProps> = ({ assets, isLoadingAssets, sortBy }) => {
     if (isLoadingAssets) {
         return (
             <div className="flex justify-center items-center h-64">
@@ -167,15 +168,94 @@ const AssetGrid: React.FC<AssetGridProps> = ({ assets, isLoadingAssets }) => {
         return <p className="col-span-full text-center text-gray-500 mt-4">No photos found.</p>;
     }
 
-    // TODO: Implement actual sorting based on `sortBy` prop passed down from HomePage
-    // TODO: Implement actual stacking logic based on `stackSimilar` prop passed down from HomePage
-    const displayedAssets = assets; // Use the unsorted/unstacked list for now
+    // Sort assets based on sortBy prop
+    const sortedAssets = [...assets].sort((a, b) => {
+        if (sortBy === 'date') {
+            // Sort by local_datetime in descending order (newest first)
+            return new Date(b.local_datetime).getTime() - new Date(a.local_datetime).getTime();
+        } else {
+            // Sort by quality score in descending order (highest first)
+            // Use the first metric value as quality score, or fallback to 0 if no metrics
+            const aScore = a.metrics ? Object.values(a.metrics)[0] || 0 : 0;
+            const bScore = b.metrics ? Object.values(b.metrics)[0] || 0 : 0;
+            return (bScore as number) - (aScore as number);
+        }
+    });
+
+    // Group assets based on sortBy
+    const groupedAssets: { [key: string]: Photos.AssetResponse[] } = {};
+
+    if (sortBy === 'date') {
+        // Group by date (YYYY-MM-DD format)
+        sortedAssets.forEach(asset => {
+            const date = new Date(asset.local_datetime).toISOString().split('T')[0];
+            if (!groupedAssets[date]) {
+                groupedAssets[date] = [];
+            }
+            groupedAssets[date].push(asset);
+        });
+    } else {
+        // Group by quality buckets
+        const qualityBuckets = {
+            'excellent': sortedAssets.filter(asset => {
+                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
+                return (score as number) >= 0.8;
+            }),
+            'good': sortedAssets.filter(asset => {
+                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
+                return (score as number) >= 0.6 && (score as number) < 0.8;
+            }),
+            'okay': sortedAssets.filter(asset => {
+                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
+                return (score as number) >= 0.4 && (score as number) < 0.6;
+            }),
+            'poor': sortedAssets.filter(asset => {
+                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
+                return (score as number) >= 0.2 && (score as number) < 0.4;
+            }),
+            'bad': sortedAssets.filter(asset => {
+                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
+                return (score as number) < 0.2;
+            })
+        };
+
+        // Only include non-empty buckets
+        Object.entries(qualityBuckets).forEach(([bucket, assets]) => {
+            if (assets.length > 0) {
+                groupedAssets[bucket] = assets;
+            }
+        });
+    }
+
+    // Format date for display
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        });
+    };
+
+    // Format quality bucket name for display
+    const formatQualityBucket = (bucket: string) => {
+        return bucket.charAt(0).toUpperCase() + bucket.slice(1);
+    };
 
     return (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {/* Map over displayedAssets */}
-            {displayedAssets.map((asset: Photos.AssetResponse) => (
-                <AssetThumbnail key={asset.id} asset={asset} />
+        <div className="space-y-8">
+            {Object.entries(groupedAssets).map(([groupKey, groupAssets]) => (
+                <div key={groupKey} className="space-y-4">
+                    <h2 className="text-xl font-semibold text-gray-800 border-b pb-2">
+                        {sortBy === 'date' ? formatDate(groupKey) : formatQualityBucket(groupKey)}
+                    </h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                        {groupAssets.map((asset: Photos.AssetResponse) => (
+                            <AssetThumbnail key={asset.id} asset={asset} />
+                        ))}
+                    </div>
+                </div>
             ))}
         </div>
     );
@@ -318,7 +398,7 @@ const MainContent: React.FC<MainContentProps> = ({
         </div>
         {/* Use AssetGrid component */}
         <div className="flex-grow overflow-y-auto">
-            <AssetGrid assets={assets} isLoadingAssets={isLoadingAssets} />
+            <AssetGrid assets={assets} isLoadingAssets={isLoadingAssets} sortBy={sortBy} />
         </div>
        </main>
     );
