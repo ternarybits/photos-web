@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    remotePatterns: [
+      {
+        hostname: "photos-api-a5uw.onrender.com",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

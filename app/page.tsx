@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Photos from 'photos'; // Assuming the SDK package is named 'photos'
-import Link from 'next/link'; // Add import for Link
+import Photos from 'photos';
+import Link from 'next/link';
+import Image from 'next/image';
+import { ImageIcon } from 'lucide-react';
 
 // Initialize the Photos SDK client
 // Note: Authentication details might be needed later.
@@ -11,30 +13,18 @@ const photosClient = new Photos({
   apiKey: 'dummy-api-key', // Provide a placeholder API key
 });
 
-// --- Type Definitions (Ideally import from SDK) ---
-interface Album {
-  id: string;
-  name: string;
-  // Add other relevant album properties if known
-}
-
-interface Asset {
-  id: string;
-  // Add other relevant asset properties if known (e.g., thumbnail_url, type)
-}
-
 // --- Component Prop Types ---
 // Removed HeaderProps
 
 interface AlbumListProps {
-  albums: Album[];
+  albums: Photos.AlbumResponse[];
   selectedAlbumId: string | null;
   onSelectAlbum: (albumId: string | null) => void;
   isLoading: boolean;
 }
 
 interface LeftNavProps {
-  albums: Album[];
+  albums: Photos.AlbumResponse[];
   selectedAlbumId: string | null;
   onSelectAlbum: (albumId: string | null) => void;
   isLoadingAlbums: boolean;
@@ -42,18 +32,18 @@ interface LeftNavProps {
 }
 
 interface AssetThumbnailProps {
-    asset: Asset;
+    asset: Photos.AssetResponse;
 }
 
 interface AssetGridProps {
-    assets: Asset[];
+    assets: Photos.AssetResponse[];
     isLoadingAssets: boolean;
 }
 
 interface MainContentProps {
   selectedAlbumId: string | null;
   onUpdateAlbumName: (albumId: string, newName: string) => Promise<boolean>;
-  assets: Asset[];
+  assets: Photos.AssetResponse[];
   title: string;
   isLoadingAssets: boolean;
   sortBy: 'date' | 'quality';
@@ -130,19 +120,35 @@ const LeftNav: React.FC<LeftNavProps> = ({
   </nav>
 );
 
-// Define AssetThumbnail component
+// Define AssetThumbnail component using Next/Image
 const AssetThumbnail: React.FC<AssetThumbnailProps> = ({ asset }) => {
-    // TODO: Display actual thumbnail image/video icon
+    const [imgError, setImgError] = useState(false);
+    const thumbnailUrl = imgError ? null : (asset.thumbnail_url || null);
+
     return (
         <Link href={`/asset/${asset.id}`} passHref>
             <div
-                // key={asset.id} // Key should be on the Link or the mapped element, not here
-                className="bg-gray-200 aspect-square flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:ring-2 ring-blue-500 rounded overflow-hidden"
+                className="bg-gray-200 aspect-square flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:ring-2 ring-blue-500 rounded overflow-hidden relative" // Added relative for fill layout
                 title={`Asset ID: ${asset.id}`} // Tooltip for ID
             >
-                {/* Placeholder content */}
-                <span className="block p-1 text-center">Asset {asset.id.substring(0, 6)}...</span>
-             </div>
+                {thumbnailUrl ? (
+                    <Image
+                        src={thumbnailUrl}
+                        alt={`Thumbnail for asset ${asset.id}`}
+                        fill // Use fill layout
+                        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw" // Optional: Provide sizes for optimization
+                        className="object-cover" // Ensure image covers the div
+                        onError={() => {
+                            console.error(`Error loading image for asset ${asset.id}:`, asset.thumbnail_url);
+                            setImgError(true);
+                        }}
+                    />
+                ) : (
+                    <div className="flex items-center justify-center w-full h-full">
+                        <ImageIcon className="w-12 h-12 text-gray-400" />
+                    </div>
+                )}
+            </div>
         </Link>
     );
 };
@@ -161,10 +167,14 @@ const AssetGrid: React.FC<AssetGridProps> = ({ assets, isLoadingAssets }) => {
         return <p className="col-span-full text-center text-gray-500 mt-4">No photos found.</p>;
     }
 
+    // TODO: Implement actual sorting based on `sortBy` prop passed down from HomePage
+    // TODO: Implement actual stacking logic based on `stackSimilar` prop passed down from HomePage
+    const displayedAssets = assets; // Use the unsorted/unstacked list for now
+
     return (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {assets.map((asset: Asset) => (
-                // Move key to the Link component which is the direct child of map
+            {/* Map over displayedAssets */}
+            {displayedAssets.map((asset: Photos.AssetResponse) => (
                 <AssetThumbnail key={asset.id} asset={asset} />
             ))}
         </div>
@@ -319,8 +329,8 @@ export default function HomePage() {
   'use client';
 
   // Use defined types for state
-  const [albums, setAlbums] = useState<Album[]>([]);
-  const [assets, setAssets] = useState<Asset[]>([]);
+  const [albums, setAlbums] = useState<Photos.AlbumResponse[]>([]);
+  const [assets, setAssets] = useState<Photos.AssetResponse[]>([]);
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
   const [loadingAlbums, setLoadingAlbums] = useState(true);
   const [loadingAssets, setLoadingAssets] = useState(true);
@@ -336,9 +346,9 @@ export default function HomePage() {
       // Clear only album-related errors
       if (error === "Failed to load albums." || error?.startsWith("Failed to create album")) setError(null);
       try {
-        const fetchedAlbums: Album[] = [];
+        const fetchedAlbums: Photos.AlbumResponse[] = [];
         for await (const album of photosClient.albums.list()) {
-           fetchedAlbums.push(album as Album);
+           fetchedAlbums.push(album as Photos.AlbumResponse);
         }
         fetchedAlbums.sort((a, b) => a.name.localeCompare(b.name));
         setAlbums(fetchedAlbums);
@@ -363,11 +373,11 @@ export default function HomePage() {
         // Clear only asset-related errors
         if (error?.startsWith("Failed to load assets")) setError(null);
         setLoadingAssets(true);
-        const fetchedAssets: Asset[] = [];
+        const fetchedAssets: Photos.AssetResponse[] = [];
         try {
             const listParams = selectedAlbumId ? { album_id: selectedAlbumId } : {};
             for await (const asset of photosClient.assets.list(listParams)) {
-                fetchedAssets.push(asset as Asset);
+                fetchedAssets.push(asset);
             }
             setAssets(fetchedAssets);
         } catch (err) {
@@ -417,13 +427,18 @@ export default function HomePage() {
      }
    };
 
+   // Handlers for sort and stack changes
    const handleSortChange = (newSortBy: 'date' | 'quality') => {
        setSortBy(newSortBy);
+       // TODO: Re-sort existing assets locally OR potentially re-fetch with sort param if API supports it.
+       // The sorting logic should ideally happen where `displayedAssets` is determined (e.g., in AssetGrid or before passing assets down).
        console.log("Sort changed to:", newSortBy);
    };
 
    const handleStackToggle = () => {
        setStackSimilar(prev => !prev);
+       // TODO: Apply/remove stacking logic locally based on the new `stackSimilar` state.
+       // This logic should ideally happen where `displayedAssets` is determined.
        console.log("Stack similar toggled to:", !stackSimilar);
    };
 
