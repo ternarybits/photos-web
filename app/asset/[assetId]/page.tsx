@@ -16,20 +16,20 @@ const photosClient = new Photos({
 // AssetImage component for handling image display with fallback
 interface AssetImageProps {
   asset: Photos.AssetResponse;
-  className?: string;
 }
 
-const AssetImage: React.FC<AssetImageProps> = ({ asset, className = '' }) => {
+const AssetImage: React.FC<AssetImageProps> = ({ asset }) => {
   const [imgError, setImgError] = useState(false);
   const imageUrl = imgError ? null : (asset.thumbnail_url || null);
 
   return (
-    <div className={`relative ${className}`}>
+    <div className="relative w-full h-full">
       {imageUrl ? (
         <Image
           src={imageUrl}
           alt={`Asset ${asset.id}`}
           fill
+          priority
           className="object-contain"
           onError={() => {
             console.error(`Error loading image for asset ${asset.id}:`, asset.thumbnail_url);
@@ -83,21 +83,22 @@ export default function AssetDetailPage() {
                  <Link href="/" className="text-blue-400 hover:text-blue-300">&larr; Back to Grid</Link>
                  {/* TODO: Add metadata and download buttons */}
                  <div className="flex gap-2">
-                    <button className="bg-gray-700 hover:bg-gray-600 p-2 rounded">Metadata</button>
-                    <button className="bg-gray-700 hover:bg-gray-600 p-2 rounded">Download</button>
+                    <button className="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer">Metadata</button>
+                    <button className="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer">Download</button>
                  </div>
             </header>
 
             {/* Main Content Area */}
             <main className="flex-1 flex justify-center items-center overflow-hidden">
-                {isLoading && <p>Loading asset...</p>}
+                {isLoading && (
+                    <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+                )}
                 {error && <p className="text-red-400">{error}</p>}
                 {!isLoading && !error && assetDetail && (
                     // TODO: Implement proper display based on asset type (image, video, motion photo)
-                    <div className="w-full h-full flex flex-col items-center">
-                         {/* Use the new AssetImage component */}
-                         <div className="w-full h-full max-h-[80vh] relative">
-                             <AssetImage asset={assetDetail} className="w-full h-full" />
+                    <div className="w-full flex-1 flex flex-col items-center">
+                         <div className="w-full h-[90vh] relative">
+                             <AssetImage asset={assetDetail} />
                          </div>
                          {/* Placeholder for video/motion photo controls */}
                     </div>
