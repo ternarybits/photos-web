@@ -464,7 +464,7 @@ export default function HomePage() {
         // Clear only asset-related errors
         if (error?.startsWith("Failed to load assets")) setError(null);
         setLoadingAssets(true);
-        let fetchedAssets: Photos.AssetResponse[] = [];
+        const fetchedAssets: Photos.AssetResponse[] = [];
         try {
             const listParams = selectedAlbumId ? { album_id: selectedAlbumId } : {};
             for await (const asset of photosClient.assets.list(listParams)) {
