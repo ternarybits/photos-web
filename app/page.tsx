@@ -5,6 +5,7 @@ import Photos from 'photos';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ImageIcon } from 'lucide-react';
+import UploadModal from './components/UploadModal';
 
 // Initialize the Photos SDK client
 // Note: Authentication details might be needed later.
@@ -51,6 +52,7 @@ interface MainContentProps {
   stackSimilar: boolean;
   onSortChange: (sortBy: 'date' | 'quality') => void;
   onStackToggle: () => void;
+  onAddPhotosClick: () => void;
 }
 
 // --- Components ---
@@ -106,7 +108,7 @@ const LeftNav: React.FC<LeftNavProps> = ({
 }) => (
   <nav className="w-64 bg-gray-50 p-4 border-r flex flex-col flex-shrink-0">
     <button
-        className="w-full bg-blue-500 text-white p-2 rounded mb-4 flex-shrink-0 text-sm hover:bg-blue-600"
+        className="w-full bg-blue-500 text-white p-2 rounded mb-4 flex-shrink-0 text-sm hover:bg-blue-600 cursor-pointer"
         onClick={onNewAlbumClick}
     >
         New Album
@@ -271,7 +273,8 @@ const MainContent: React.FC<MainContentProps> = ({
     sortBy,
     stackSimilar,
     onSortChange,
-    onStackToggle
+    onStackToggle,
+    onAddPhotosClick
 }) => {
     // State for inline editing
     const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -394,7 +397,7 @@ const MainContent: React.FC<MainContentProps> = ({
              </div>
           </div>
           {/* Placeholder for actions */}
-          <button className="bg-green-500 text-white p-2 rounded text-sm">Add Photos</button>
+          <button className="bg-green-500 text-white p-2 rounded text-sm cursor-pointer hover:bg-green-600" onClick={onAddPhotosClick}>Add Photos</button>
         </div>
         {/* Use AssetGrid component */}
         <div className="flex-grow overflow-y-auto">
@@ -419,6 +422,9 @@ export default function HomePage() {
   // Add state for sorting and stacking
   const [sortBy, setSortBy] = useState<'date' | 'quality'>('date'); // Default to date
   const [stackSimilar, setStackSimilar] = useState(false); // Default to off
+
+  // Add state for upload modal
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   // Function to fetch albums (can be reused)
   const fetchAlbums = async (showLoading = true) => {
@@ -555,6 +561,48 @@ export default function HomePage() {
    const selectedAlbum = albums.find(album => album.id === selectedAlbumId);
    const mainTitle = selectedAlbum ? selectedAlbum.name : "All Photos";
 
+   // Handler for uploading files
+   const handleUpload = async (files: FileList) => {
+     setError(null); // Clear any previous errors
+     try {
+       // Upload each file
+       for (let i = 0; i < files.length; i++) {
+         const file = files[i];
+         
+         // Create asset params object
+         const assetParams: Photos.AssetCreateParams = {
+           asset_data: file,
+           device_asset_id: `web-upload-${Date.now()}-${i}`, // Generate a unique ID
+           device_id: 'web-client',
+           file_created_at: new Date(file.lastModified).toISOString(),
+           file_modified_at: new Date(file.lastModified).toISOString()
+         };
+
+         // Upload the asset using the SDK
+         const asset = await photosClient.assets.create(assetParams);
+
+         // If we're in an album, add the asset to it
+         if (selectedAlbumId) {
+           await photosClient.albums.assets.add(selectedAlbumId, {
+             asset_ids: [asset.id]
+           });
+         }
+       }
+
+       // Refresh the assets list
+       const fetchedAssets: Photos.AssetResponse[] = [];
+       const listParams = selectedAlbumId ? { album_id: selectedAlbumId } : {};
+       for await (const asset of photosClient.assets.list(listParams)) {
+         fetchedAssets.push(asset);
+       }
+       setAssets(fetchedAssets);
+
+     } catch (err) {
+       console.error('Error uploading files:', err);
+       setError('Failed to upload one or more files.');
+       throw err; // Re-throw to be caught by the modal's error handling
+     }
+   };
 
   return (
     <div className="flex flex-col h-screen bg-white">
@@ -578,8 +626,15 @@ export default function HomePage() {
             stackSimilar={stackSimilar}
             onSortChange={handleSortChange}
             onStackToggle={handleStackToggle}
+            onAddPhotosClick={() => setIsUploadModalOpen(true)}
          />
       </div>
+      <UploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onUpload={handleUpload}
+        albumName={selectedAlbum?.name}
+      />
     </div>
   );
 }
