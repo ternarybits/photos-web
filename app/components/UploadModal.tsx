@@ -6,9 +6,10 @@ interface UploadModalProps {
     onClose: () => void;
     onUpload: (files: FileList) => Promise<void>;
     albumName?: string;
+    uploadProgress?: number;
 }
 
-export default function UploadModal({ isOpen, onClose, onUpload, albumName }: UploadModalProps) {
+export default function UploadModal({ isOpen, onClose, onUpload, albumName, uploadProgress }: UploadModalProps) {
     const [isDragging, setIsDragging] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -54,6 +55,8 @@ export default function UploadModal({ isOpen, onClose, onUpload, albumName }: Up
     };
 
     if (!isOpen) return null;
+
+    const showProgress = isUploading && uploadProgress !== undefined && uploadProgress >= 0;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -126,6 +129,19 @@ export default function UploadModal({ isOpen, onClose, onUpload, albumName }: Up
                     </div>
                 )}
 
+                {/* Upload Progress Indicator */}
+                {showProgress && (
+                    <div className="px-4 py-2 border-t">
+                        <div className="text-sm text-gray-600 mb-1">Uploading... ({Math.round(uploadProgress)}%)</div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                            <div
+                                className="bg-blue-500 h-2.5 rounded-full transition-width duration-150 ease-linear"
+                                style={{ width: `${uploadProgress}%` }}
+                            ></div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Footer */}
                 <div className="flex justify-end gap-2 p-4 border-t">
                     <button
@@ -143,7 +159,7 @@ export default function UploadModal({ isOpen, onClose, onUpload, albumName }: Up
                                 : 'bg-blue-500 hover:bg-blue-600'
                         }`}
                     >
-                        {isUploading ? 'Uploading...' : 'Upload'}
+                        {isUploading ? (showProgress ? `Uploading (${Math.round(uploadProgress)}%)...` : 'Uploading...') : 'Upload'}
                     </button>
                 </div>
             </div>

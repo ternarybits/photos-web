@@ -199,9 +199,13 @@ const AssetGrid: React.FC<AssetGridProps> = ({ assets, isLoadingAssets, sortBy }
     } else {
         // Group by quality buckets
         const qualityBuckets = {
+            'top': sortedAssets.filter(asset => {
+                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
+                return (score as number) >= 0.99;
+            }),
             'excellent': sortedAssets.filter(asset => {
                 const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
-                return (score as number) >= 0.8;
+                return (score as number) >= 0.8 && (score as number) < 0.99;
             }),
             'good': sortedAssets.filter(asset => {
                 const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
@@ -425,6 +429,7 @@ export default function HomePage() {
 
   // Add state for upload modal
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   // Function to fetch albums (can be reused)
   const fetchAlbums = async (showLoading = true) => {
@@ -564,11 +569,16 @@ export default function HomePage() {
    // Handler for uploading files
    const handleUpload = async (files: FileList) => {
      setError(null); // Clear any previous errors
+     setUploadProgress(0); // Start progress at 0
      try {
+       const totalFiles = files.length;
        // Upload each file
-       for (let i = 0; i < files.length; i++) {
+       for (let i = 0; i < totalFiles; i++) {
          const file = files[i];
          
+         // Update progress before starting the upload for this file
+         setUploadProgress(((i) / totalFiles) * 100);
+
          // Create asset params object
          const assetParams: Photos.AssetCreateParams = {
            asset_data: file,
@@ -587,6 +597,9 @@ export default function HomePage() {
              asset_ids: [asset.id]
            });
          }
+         
+         // Update progress after successful upload and potential album add
+         setUploadProgress(((i + 1) / totalFiles) * 100);
        }
 
        // Refresh the assets list
@@ -601,6 +614,8 @@ export default function HomePage() {
        console.error('Error uploading files:', err);
        setError('Failed to upload one or more files.');
        throw err; // Re-throw to be caught by the modal's error handling
+     } finally {
+        setUploadProgress(null); // Reset progress on completion or error
      }
    };
 
@@ -634,6 +649,7 @@ export default function HomePage() {
         onClose={() => setIsUploadModalOpen(false)}
         onUpload={handleUpload}
         albumName={selectedAlbum?.name}
+        uploadProgress={uploadProgress ?? undefined}
       />
     </div>
   );
