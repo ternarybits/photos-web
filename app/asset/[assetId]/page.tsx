@@ -2,11 +2,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Photos from 'photos'; // Assuming the SDK package is named 'photos'
-import Link from 'next/link'; // For back button
+import Link from 'next/link'; // For back button and potentially nav buttons
 import Image from 'next/image';
-import { ImageIcon } from 'lucide-react';
+import { ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Initialize the Photos SDK client (can potentially share instance later)
 const photosClient = new Photos({
@@ -47,23 +47,56 @@ const AssetImage: React.FC<AssetImageProps> = ({ asset }) => {
 
 export default function AssetDetailPage() {
     const params = useParams();
+    const router = useRouter();
     const assetId = params.assetId as string; // Get assetId from route
 
     const [assetDetail, setAssetDetail] = useState<Photos.AssetResponse | null>(null);
+    const [previousAssetId, setPreviousAssetId] = useState<string | null>(null);
+    const [nextAssetId, setNextAssetId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!assetId) return;
 
-        const fetchAssetDetail = async () => {
+        const fetchAssetDetailAndNav = async () => {
             setIsLoading(true);
             setError(null);
+            setAssetDetail(null); // Clear previous asset detail
+            setPreviousAssetId(null); // Clear previous/next IDs initially
+            setNextAssetId(null);
+
             try {
                 // Fetch the specific asset details
-                // Assuming retrieve method exists and returns detailed info
                 const detail = await photosClient.assets.retrieve(assetId);
-                setAssetDetail(detail as Photos.AssetResponse); // Cast to our detail type
+                setAssetDetail(detail as Photos.AssetResponse);
+
+                // --- Read order from localStorage --- 
+                if (typeof window !== 'undefined') {
+                    try {
+                        const storedOrder = localStorage.getItem('currentAssetOrder');
+                        if (storedOrder) {
+                            const assetIds: string[] = JSON.parse(storedOrder);
+                            const currentIndex = assetIds.indexOf(assetId);
+
+                            if (currentIndex !== -1) {
+                                // Set previous ID if not the first item
+                                if (currentIndex > 0) {
+                                    setPreviousAssetId(assetIds[currentIndex - 1]);
+                                }
+                                // Set next ID if not the last item
+                                if (currentIndex < assetIds.length - 1) {
+                                    setNextAssetId(assetIds[currentIndex + 1]);
+                                }
+                            }
+                        }
+                    } catch (parseError) {
+                        console.error("Error reading or parsing asset order from localStorage:", parseError);
+                        // Optionally clear the bad data: localStorage.removeItem('currentAssetOrder');
+                    }
+                }
+                 // --- End localStorage logic --- 
+
             } catch (err) {
                 console.error("Error fetching asset details:", err);
                 setError(`Failed to load asset details for ID: ${assetId}`);
@@ -73,36 +106,76 @@ export default function AssetDetailPage() {
             }
         };
 
-        fetchAssetDetail();
+        fetchAssetDetailAndNav();
     }, [assetId]); // Re-run if assetId changes
+
+    // Handlers for navigation buttons
+    const goToPrevious = () => {
+        if (previousAssetId) {
+            router.push(`/asset/${previousAssetId}`);
+        }
+    };
+
+    const goToNext = () => {
+        if (nextAssetId) {
+            router.push(`/asset/${nextAssetId}`);
+        }
+    };
 
     return (
         <div className="flex flex-col min-h-screen bg-gray-900 text-white p-4">
             {/* Header with Back Button and Actions */}
             <header className="flex justify-between items-center mb-4 flex-shrink-0">
                  <Link href="/" className="text-blue-400 hover:text-blue-300">&larr; Back to Grid</Link>
-                 {/* TODO: Add metadata and download buttons */}
                  <div className="flex gap-2">
                     <button className="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer">Metadata</button>
                     <button className="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer">Download</button>
                  </div>
             </header>
 
-            {/* Main Content Area */}
-            <main className="flex-1 flex justify-center items-center overflow-hidden">
+            {/* Main Content Area - Make it relative to position buttons */}
+            <main className="flex-1 flex justify-center items-center overflow-hidden relative">
+                 {/* Loading Indicator */} 
                 {isLoading && (
                     <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
                 )}
+                {/* Error Message */} 
                 {error && <p className="text-red-400">{error}</p>}
+                
+                {/* Asset Display Area - Only render if not loading and no error */} 
                 {!isLoading && !error && assetDetail && (
-                    // TODO: Implement proper display based on asset type (image, video, motion photo)
-                    <div className="w-full flex-1 flex flex-col items-center">
+                     <> { /* Fragment to group image container and buttons */ }
                          <div className="w-full h-[90vh] relative">
                              <AssetImage asset={assetDetail} />
                          </div>
-                         {/* Placeholder for video/motion photo controls */}
-                    </div>
+
+                        {/* Previous Button */} 
+                        {previousAssetId && (
+                            <button 
+                                onClick={goToPrevious}
+                                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-colors disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
+                                aria-label="Previous asset"
+                                title="Previous asset"
+                            >
+                                <ChevronLeft size={24} />
+                            </button>
+                        )}
+
+                        {/* Next Button */} 
+                        {nextAssetId && (
+                             <button 
+                                onClick={goToNext}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-colors disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
+                                aria-label="Next asset"
+                                title="Next asset"
+                            >
+                                <ChevronRight size={24} />
+                            </button>
+                        )}
+                    </>
                 )}
+
+                 {/* Not Found Message - Only render if not loading, no error, and no detail */} 
                  {!isLoading && !error && !assetDetail && (
                     <p>Asset not found.</p>
                  )}

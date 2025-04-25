@@ -458,23 +458,54 @@ export default function HomePage() {
   }, []); // Run only once on mount
 
 
-  // Fetch assets when selectedAlbumId or loadingAlbums changes
+  // Fetch assets when selectedAlbumId, loadingAlbums, or sortBy changes
   useEffect(() => {
     const fetchAssets = async () => {
         // Clear only asset-related errors
         if (error?.startsWith("Failed to load assets")) setError(null);
         setLoadingAssets(true);
-        const fetchedAssets: Photos.AssetResponse[] = [];
+        let fetchedAssets: Photos.AssetResponse[] = [];
         try {
             const listParams = selectedAlbumId ? { album_id: selectedAlbumId } : {};
             for await (const asset of photosClient.assets.list(listParams)) {
                 fetchedAssets.push(asset);
             }
             setAssets(fetchedAssets);
+
+            // --- Add localStorage logic --- 
+            // Sort the fetched assets based on the current sortBy state
+            const sortedAssets = [...fetchedAssets].sort((a, b) => {
+                if (sortBy === 'date') {
+                    return new Date(b.local_datetime).getTime() - new Date(a.local_datetime).getTime();
+                } else {
+                    const aScore = a.metrics ? Object.values(a.metrics)[0] || 0 : 0;
+                    const bScore = b.metrics ? Object.values(b.metrics)[0] || 0 : 0;
+                    return (bScore as number) - (aScore as number);
+                }
+            });
+
+            // Extract just the IDs
+            const sortedAssetIds = sortedAssets.map(asset => asset.id);
+
+            // Store in localStorage
+            if (typeof window !== 'undefined') {
+                try {
+                    localStorage.setItem('currentAssetOrder', JSON.stringify(sortedAssetIds));
+                } catch (storageError) {
+                    console.error("Error saving asset order to localStorage:", storageError);
+                    // Handle potential storage errors (e.g., quota exceeded)
+                }
+            }
+            // --- End localStorage logic ---
+
         } catch (err) {
             console.error("Error fetching assets:", err);
             setError(`Failed to load assets.${selectedAlbumId ? ` Album ID: ${selectedAlbumId}`: ''}`);
             setAssets([]);
+            // Clear localStorage on error?
+            if (typeof window !== 'undefined') {
+                 try { localStorage.removeItem('currentAssetOrder'); } catch (e) {}
+            }
         } finally {
             setLoadingAssets(false);
         }
@@ -482,7 +513,8 @@ export default function HomePage() {
     if (!loadingAlbums) { // Ensure albums (potentially empty list) are loaded before fetching assets
         fetchAssets();
     }
-   }, [selectedAlbumId, loadingAlbums]); // Re-run when selectedAlbumId or loadingAlbums changes
+   // Add sortBy to dependency array
+   }, [selectedAlbumId, loadingAlbums, error, sortBy]); // Re-run when selectedAlbumId, loadingAlbums, or sortBy changes
 
 
    // Handler for the "New Album" button click
