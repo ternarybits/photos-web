@@ -151,8 +151,14 @@ export default function AssetDetailPage() {
             <header className="flex justify-between items-center mb-4 flex-shrink-0">
                  <Link href="/" className="text-blue-400 hover:text-blue-300">&larr; Back to Grid</Link>
                  <div className="flex gap-2">
-                    <button className="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer">Metadata</button>
-                    <button className="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer">Download</button>
+                    <button
+                        type="button"
+                        className="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer"
+                    >Metadata</button>
+                    <button
+                        type="button"
+                        className="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer"
+                    >Download</button>
                  </div>
             </header>
 
@@ -175,6 +181,7 @@ export default function AssetDetailPage() {
                         {/* Previous Button */} 
                         {previousAssetId && (
                             <button 
+                                type="button"
                                 onClick={goToPrevious}
                                 className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-colors disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                                 aria-label="Previous asset"
@@ -187,6 +194,7 @@ export default function AssetDetailPage() {
                         {/* Next Button */} 
                         {nextAssetId && (
                              <button 
+                                type="button"
                                 onClick={goToNext}
                                 className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full transition-colors disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
                                 aria-label="Next asset"
