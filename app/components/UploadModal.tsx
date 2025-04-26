@@ -73,6 +73,7 @@ export default function UploadModal({ isOpen, onClose, onUpload, albumName, uplo
                         Add Photos {albumName ? `to ${albumName}` : ''}
                     </h2>
                     <button
+                        type="button"
                         onClick={onClose}
                         className="p-1 hover:bg-gray-100 rounded-full"
                         aria-label="Close"
@@ -151,12 +152,14 @@ export default function UploadModal({ isOpen, onClose, onUpload, albumName, uplo
                 {/* Footer */}
                 <div className="flex justify-end gap-2 p-4 border-t">
                     <button
+                        type="button"
                         onClick={onClose}
                         className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded"
                     >
                         Cancel
                     </button>
                     <button
+                        type="button"
                         onClick={handleUpload}
                         disabled={!selectedFiles || isUploading}
                         className={`px-4 py-2 text-sm font-medium text-white rounded ${

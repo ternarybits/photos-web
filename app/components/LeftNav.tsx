@@ -87,6 +87,7 @@ const LeftNav: React.FC<LeftNavProps> = ({
 }) => (
   <nav className="w-64 bg-gray-50 p-4 border-r flex flex-col flex-shrink-0">
     <button
+        type="button"
         className="w-full bg-blue-500 text-white p-2 rounded mb-4 flex-shrink-0 text-sm hover:bg-blue-600 cursor-pointer"
         onClick={onNewAlbumClick}
     >
