@@ -202,7 +202,8 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
 
   // Add state for sorting and stacking
-  const [sortBy, setSortBy] = useState<'date' | 'quality'>('date'); // Default to date
+  // Initialize sortBy state to null initially, will be set by useEffect
+  const [sortBy, setSortBy] = useState<'date' | 'quality' | null>(null);
   const [stackSimilar, setStackSimilar] = useState(false); // Default to off
 
   // Add state for upload modal
@@ -235,20 +236,24 @@ export default function HomePage() {
     fetchAlbums();
   }, []); // Run only once on mount
 
-  // Effect to set initial album selection from URL query parameter
+  // Effect to set initial album selection and sort order from URL query parameters
   useEffect(() => {
     const initialAlbumId = searchParams.get('album');
-    // Check if the ID from URL is different from the current state
-    // Prevents unnecessary state updates on re-renders if the param is already reflected
-    if (initialAlbumId && initialAlbumId !== selectedAlbumId) {
-      setSelectedAlbumId(initialAlbumId);
+    const initialSortBy = searchParams.get('sort') as 'date' | 'quality' | null;
+
+    // Update album ID if different from URL
+    if (initialAlbumId !== selectedAlbumId) {
+        setSelectedAlbumId(initialAlbumId);
     }
-    // If the URL has no album param, but state has one (e.g., back button), reset state
-    else if (!initialAlbumId && selectedAlbumId) {
-        setSelectedAlbumId(null);
+
+    // Update sort order if different from URL, defaulting to 'date'
+    const validSort = initialSortBy === 'quality' ? 'quality' : 'date'; // Default to date
+    if (validSort !== sortBy) {
+        setSortBy(validSort);
     }
-    // Only run this effect when searchParams changes (e.g., browser back/forward)
-  }, [searchParams, selectedAlbumId]); // Added selectedAlbumId dependency
+
+    // Only run this effect when searchParams changes
+  }, [searchParams, selectedAlbumId, sortBy]); // Add sortBy dependency
 
   // Fetch assets when selectedAlbumId, loadingAlbums, or sortBy changes
   useEffect(() => {
@@ -308,12 +313,12 @@ export default function HomePage() {
     if (!loadingAlbums) { // Ensure albums (potentially empty list) are loaded before fetching assets
         fetchAssets();
     }
-   // Re-run when selectedAlbumId or sortBy changes. Removed 'error' dependency.
+   // Re-run when selectedAlbumId or sortBy changes.
    }, [selectedAlbumId, loadingAlbums, sortBy]);
 
-   // Helper function to update URL
-   const updateUrlForAlbum = useCallback((albumId: string | null) => {
-       const current = new URLSearchParams(Array.from(searchParams.entries())); // Create mutable params
+   // Helper function to update URL with current album and sort parameters
+   const updateUrlParams = useCallback((albumId: string | null, currentSortBy: 'date' | 'quality') => {
+       const current = new URLSearchParams(Array.from(searchParams.entries()));
 
        if (!albumId) {
            current.delete('album');
@@ -321,9 +326,11 @@ export default function HomePage() {
            current.set('album', albumId);
        }
 
+       // Always set the sort parameter
+       current.set('sort', currentSortBy);
+
        const search = current.toString();
        const query = search ? `?${search}` : "";
-       // Use replace to avoid adding history entries for album selections
        router.replace(`${pathname}${query}`);
    }, [pathname, router, searchParams]);
 
@@ -343,7 +350,10 @@ export default function HomePage() {
            // Re-fetch the list and select the new album
            await fetchAlbums(false);
            setSelectedAlbumId(newAlbum.id);
-           updateUrlForAlbum(newAlbum.id); // Update URL as well
+           // Ensure sortBy has a value before updating URL
+           if (sortBy) {
+             updateUrlParams(newAlbum.id, sortBy);
+           }
 
        } catch (err) {
            console.error("Error creating album:", err);
@@ -357,16 +367,20 @@ export default function HomePage() {
    const handleSelectAlbum = useCallback((albumId: string | null) => {
      if (albumId !== selectedAlbumId) {
         setSelectedAlbumId(albumId);
-        updateUrlForAlbum(albumId); // Update URL
+        // Ensure sortBy has a value before updating URL
+        if (sortBy) {
+            updateUrlParams(albumId, sortBy);
+        }
      }
-   }, [selectedAlbumId, updateUrlForAlbum]);
+   }, [selectedAlbumId, sortBy, updateUrlParams]);
 
    // Handlers for sort and stack changes
    const handleSortChange = (newSortBy: 'date' | 'quality') => {
-       setSortBy(newSortBy);
-       // TODO: Re-sort existing assets locally OR potentially re-fetch with sort param if API supports it.
-       // The sorting logic should ideally happen where `displayedAssets` is determined (e.g., in AssetGrid or before passing assets down).
-       console.log("Sort changed to:", newSortBy);
+       if (newSortBy !== sortBy) {
+           setSortBy(newSortBy);
+           updateUrlParams(selectedAlbumId, newSortBy); // Update URL with new sort
+           console.log("Sort changed to:", newSortBy);
+       }
    };
 
    const handleStackToggle = () => {
@@ -474,18 +488,21 @@ export default function HomePage() {
            isLoadingAlbums={loadingAlbums}
            onNewAlbumClick={handleNewAlbumClick}
          />
-         <MainContent
-            selectedAlbumId={selectedAlbumId}
-            onUpdateAlbumName={updateAlbumName}
-            assets={assets}
-            title={mainTitle}
-            isLoadingAssets={loadingAssets}
-            sortBy={sortBy}
-            stackSimilar={stackSimilar}
-            onSortChange={handleSortChange}
-            onStackToggle={handleStackToggle}
-            onAddPhotosClick={() => setIsUploadModalOpen(true)}
-         />
+         {/* Only render MainContent if sortBy has been initialized */}
+         {sortBy && (
+            <MainContent
+              selectedAlbumId={selectedAlbumId}
+              onUpdateAlbumName={updateAlbumName}
+              assets={assets}
+              title={mainTitle}
+              isLoadingAssets={loadingAssets}
+              sortBy={sortBy}
+              stackSimilar={stackSimilar}
+              onSortChange={handleSortChange}
+              onStackToggle={handleStackToggle}
+              onAddPhotosClick={() => setIsUploadModalOpen(true)}
+            />
+         )}
       </div>
       <UploadModal
         isOpen={isUploadModalOpen}
