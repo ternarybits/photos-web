@@ -186,9 +186,6 @@ const MainContent: React.FC<MainContentProps> = ({
 
 // --- Extracted Client Component ---
 function PhotosApp() {
-  // Mark this component explicitly as client-side
-  'use client';
-
   // Navigation hooks
   const router = useRouter();
   const pathname = usePathname();
