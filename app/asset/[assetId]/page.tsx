@@ -1,7 +1,7 @@
 // Create new file: app/asset/[assetId]/page.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Photos from 'photos'; // Assuming the SDK package is named 'photos'
 import Link from 'next/link'; // For back button and potentially nav buttons
@@ -83,11 +83,15 @@ export default function AssetDetailPage() {
                             if (currentIndex !== -1) {
                                 // Set previous ID if not the first item
                                 if (currentIndex > 0) {
-                                    setPreviousAssetId(assetIds[currentIndex - 1]);
+                                    const prevId = assetIds[currentIndex - 1];
+                                    setPreviousAssetId(prevId);
+                                    router.prefetch(`/asset/${prevId}`); // Prefetch previous page
                                 }
                                 // Set next ID if not the last item
                                 if (currentIndex < assetIds.length - 1) {
-                                    setNextAssetId(assetIds[currentIndex + 1]);
+                                    const nextId = assetIds[currentIndex + 1];
+                                    setNextAssetId(nextId);
+                                    router.prefetch(`/asset/${nextId}`); // Prefetch next page
                                 }
                             }
                         }
@@ -110,18 +114,36 @@ export default function AssetDetailPage() {
         fetchAssetDetailAndNav();
     }, [assetId]); // Re-run if assetId changes
 
-    // Handlers for navigation buttons
-    const goToPrevious = () => {
+    // Handlers for navigation buttons - memoized
+    const goToPrevious = useCallback(() => {
         if (previousAssetId) {
             router.push(`/asset/${previousAssetId}`);
         }
-    };
+    }, [previousAssetId, router]);
 
-    const goToNext = () => {
+    const goToNext = useCallback(() => {
         if (nextAssetId) {
             router.push(`/asset/${nextAssetId}`);
         }
-    };
+    }, [nextAssetId, router]);
+
+    // Effect to handle keyboard navigation
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'ArrowLeft') {
+                goToPrevious();
+            } else if (event.key === 'ArrowRight') {
+                goToNext();
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+
+        // Cleanup function
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [goToPrevious, goToNext]); // Depend on the memoized handlers
 
     return (
         <div className="flex flex-col min-h-screen bg-gray-900 text-white p-4">

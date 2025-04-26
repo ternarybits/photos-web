@@ -152,12 +152,14 @@ const MainContent: React.FC<MainContentProps> = ({
             <div className="flex items-center gap-1">
                 <span className="text-gray-600">Sort:</span>
                  <button
+                    type="button"
                     onClick={() => onSortChange('date')}
                     className={`px-2 py-1 rounded ${sortBy === 'date' ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'}`}
                  >
                     By Date
                  </button>
                  <button
+                     type="button"
                      onClick={() => onSortChange('quality')}
                      className={`px-2 py-1 rounded ${sortBy === 'quality' ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'}`}
                   >
@@ -168,6 +170,7 @@ const MainContent: React.FC<MainContentProps> = ({
              <div className="flex items-center gap-1">
                  <span className="text-gray-600">Stack Similar:</span>
                  <button
+                     type="button"
                      onClick={onStackToggle}
                      className={`px-2 py-1 rounded ${stackSimilar ? 'bg-gray-200 font-medium' : 'hover:bg-gray-100'}`}
                  >
@@ -177,10 +180,14 @@ const MainContent: React.FC<MainContentProps> = ({
           </div>
           {/* Action Buttons */}
           <div className="flex gap-2">
-             <button className="bg-green-500 text-white p-2 rounded text-sm cursor-pointer hover:bg-green-600" onClick={onAddPhotosClick}>Add Photos</button>
+             <button
+                type="button"
+                className="bg-green-500 text-white p-2 rounded text-sm cursor-pointer hover:bg-green-600"
+                onClick={onAddPhotosClick}>Add Photos</button>
              {/* Conditionally render Delete Album button */}
              {selectedAlbumId && (
                  <button
+                     type="button"
                      className="bg-red-500 text-white p-2 rounded text-sm cursor-pointer hover:bg-red-600"
                      onClick={() => onDeleteAlbum(selectedAlbumId)}
                  >
