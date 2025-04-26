@@ -26,10 +26,10 @@ const AssetThumbnail: React.FC<AssetThumbnailProps> = ({ asset }) => {
     const thumbnailUrl = imgError ? null : (asset.thumbnail_url || null);
 
     return (
-        <Link href={`/asset/${asset.id}`} passHref>
+        <Link href={`/asset/${asset.id}`}>
             <div
                 className="bg-gray-200 aspect-square flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:ring-2 ring-blue-500 rounded overflow-hidden relative" // Added relative for fill layout
-                title={`Asset ID: ${asset.id}`} // Tooltip for ID
+                title={`Asset ID: ${asset.id}`}
             >
                 {thumbnailUrl ? (
                     <Image
@@ -94,33 +94,27 @@ const AssetGrid: React.FC<AssetGridProps> = ({ assets, isLoadingAssets, sortBy }
             groupedAssets[date].push(asset);
         });
     } else {
-        // Group by quality buckets
-        const qualityBuckets = {
-            'top': sortedAssets.filter(asset => {
-                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
-                return (score as number) >= 0.99;
-            }),
-            'excellent': sortedAssets.filter(asset => {
-                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
-                return (score as number) >= 0.8 && (score as number) < 0.99;
-            }),
-            'good': sortedAssets.filter(asset => {
-                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
-                return (score as number) >= 0.6 && (score as number) < 0.8;
-            }),
-            'okay': sortedAssets.filter(asset => {
-                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
-                return (score as number) >= 0.4 && (score as number) < 0.6;
-            }),
-            'poor': sortedAssets.filter(asset => {
-                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
-                return (score as number) >= 0.2 && (score as number) < 0.4;
-            }),
-            'bad': sortedAssets.filter(asset => {
-                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
-                return (score as number) < 0.2;
-            })
+        // Group by quality buckets - Single Pass
+        const qualityBuckets: { [key: string]: Photos.AssetResponse[] } = {
+            'top': [], 'excellent': [], 'good': [], 'okay': [], 'poor': [], 'bad': []
         };
+
+        sortedAssets.forEach(asset => {
+            const score = (asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0) as number;
+            if (score >= 0.99) {
+                qualityBuckets.top.push(asset);
+            } else if (score >= 0.8) {
+                qualityBuckets.excellent.push(asset);
+            } else if (score >= 0.6) {
+                qualityBuckets.good.push(asset);
+            } else if (score >= 0.4) {
+                qualityBuckets.okay.push(asset);
+            } else if (score >= 0.2) {
+                qualityBuckets.poor.push(asset);
+            } else {
+                qualityBuckets.bad.push(asset);
+            }
+        });
 
         // Only include non-empty buckets
         Object.entries(qualityBuckets).forEach(([bucket, assets]) => {

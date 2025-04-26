@@ -185,9 +185,6 @@ const MainContent: React.FC<MainContentProps> = ({
 };
 
 export default function HomePage() {
-  // Indicate this is a client component
-  'use client';
-
   // Navigation hooks
   const router = useRouter();
   const pathname = usePathname();
@@ -253,7 +250,7 @@ export default function HomePage() {
     }
 
     // Only run this effect when searchParams changes
-  }, [searchParams, selectedAlbumId, sortBy]); // Add sortBy dependency
+  }, [searchParams, selectedAlbumId, sortBy]);
 
   // Fetch assets when selectedAlbumId, loadingAlbums, or sortBy changes
   useEffect(() => {
@@ -313,8 +310,7 @@ export default function HomePage() {
     if (!loadingAlbums) { // Ensure albums (potentially empty list) are loaded before fetching assets
         fetchAssets();
     }
-   // Re-run when selectedAlbumId or sortBy changes.
-   }, [selectedAlbumId, loadingAlbums, sortBy]);
+   }, [selectedAlbumId, loadingAlbums, sortBy, error]);
 
    // Helper function to update URL with current album and sort parameters
    const updateUrlParams = useCallback((albumId: string | null, currentSortBy: 'date' | 'quality') => {

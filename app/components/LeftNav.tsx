@@ -2,20 +2,20 @@
 
 import React from 'react';
 import Photos from 'photos'; // Assuming Photos SDK types are importable
+import Link from 'next/link'; // Import Link
+import { useSearchParams } from 'next/navigation'; // Import useSearchParams
 
 // --- Component Prop Types ---
 
 interface AlbumListProps {
   albums: Photos.AlbumResponse[];
   selectedAlbumId: string | null;
-  onSelectAlbum: (albumId: string | null) => void;
   isLoading: boolean;
 }
 
 interface LeftNavProps {
   albums: Photos.AlbumResponse[];
   selectedAlbumId: string | null;
-  onSelectAlbum: (albumId: string | null) => void;
   isLoadingAlbums: boolean;
   onNewAlbumClick: () => void;
 }
@@ -23,42 +23,65 @@ interface LeftNavProps {
 // --- Components ---
 
 // Define AlbumList component
-const AlbumList: React.FC<AlbumListProps> = ({ albums, selectedAlbumId, onSelectAlbum, isLoading }) => (
-   <ul className="overflow-y-auto flex-grow">
-    {isLoading ? (
-      <li className="p-1 text-gray-500 italic">Loading albums...</li>
-    ) : (
-      <>
-        <li
-          key="all"
-          className={`p-1 hover:bg-gray-200 rounded cursor-pointer ${!selectedAlbumId ? 'bg-gray-200 font-semibold' : ''}`}
-          onClick={() => onSelectAlbum(null)}
-        >
-          All Photos
-        </li>
-        {albums.map((album) => (
-          <li
-            key={album.id}
-            className={`p-1 hover:bg-gray-200 rounded cursor-pointer truncate ${selectedAlbumId === album.id ? 'bg-gray-200 font-semibold' : ''}`}
-            onClick={() => onSelectAlbum(album.id)}
-            title={album.name}
-          >
-            {album.name}
-          </li>
-        ))}
-        {albums.length === 0 && !isLoading && (
-            <li className="p-1 text-gray-500 italic">No albums found.</li>
-        )}
-      </>
-    )}
-  </ul>
-);
+const AlbumList: React.FC<AlbumListProps> = ({ albums, selectedAlbumId, isLoading }) => {
+   const searchParams = useSearchParams(); // Get current search params
+
+   // Helper to construct href, preserving sort param
+   const getLinkHref = (albumId: string | null) => {
+       const current = new URLSearchParams(Array.from(searchParams.entries()));
+       if (albumId) {
+           current.set('album', albumId);
+       } else {
+           current.delete('album');
+       }
+       const search = current.toString();
+       return `/?${search}`; // Assuming base path is root
+   };
+
+   return (
+      <ul className="overflow-y-auto flex-grow">
+          {isLoading ? (
+              <li className="p-1 text-gray-500 italic">Loading albums...</li>
+          ) : (
+              <>
+                  <li
+                      key="all"
+                      className={`rounded ${!selectedAlbumId ? 'bg-gray-200 font-semibold' : ''}`}
+                  >
+                      <Link
+                          href={getLinkHref(null)}
+                          className={`block p-1 hover:bg-gray-200 rounded cursor-pointer`}
+                      >
+                          All Photos
+                      </Link>
+                  </li>
+                  {albums.map((album) => (
+                      <li
+                          key={album.id}
+                          className={`rounded ${selectedAlbumId === album.id ? 'bg-gray-200 font-semibold' : ''}`}
+                          title={album.name}
+                      >
+                          <Link
+                              href={getLinkHref(album.id)}
+                              className={`block p-1 hover:bg-gray-200 rounded cursor-pointer truncate`}
+                          >
+                              {album.name}
+                          </Link>
+                      </li>
+                  ))}
+                  {albums.length === 0 && !isLoading && (
+                      <li className="p-1 text-gray-500 italic">No albums found.</li>
+                  )}
+              </>
+          )}
+      </ul>
+   );
+};
 
 // Define LeftNav
 const LeftNav: React.FC<LeftNavProps> = ({
     albums,
     selectedAlbumId,
-    onSelectAlbum,
     isLoadingAlbums,
     onNewAlbumClick
 }) => (
@@ -73,7 +96,6 @@ const LeftNav: React.FC<LeftNavProps> = ({
     <AlbumList
         albums={albums}
         selectedAlbumId={selectedAlbumId}
-        onSelectAlbum={onSelectAlbum}
         isLoading={isLoadingAlbums}
     />
   </nav>
