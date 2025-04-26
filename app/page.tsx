@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Photos from 'photos';
 import UploadModal from './components/UploadModal';
@@ -184,7 +184,11 @@ const MainContent: React.FC<MainContentProps> = ({
     );
 };
 
-export default function HomePage() {
+// --- Extracted Client Component ---
+function PhotosApp() {
+  // Mark this component explicitly as client-side
+  'use client';
+
   // Navigation hooks
   const router = useRouter();
   const pathname = usePathname();
@@ -208,7 +212,7 @@ export default function HomePage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   // Function to fetch albums (can be reused)
-  const fetchAlbums = async (showLoading = true) => {
+  const fetchAlbums = useCallback(async (showLoading = true) => {
       if (showLoading) setLoadingAlbums(true);
       // Clear only album-related errors
       if (error === "Failed to load albums." || error?.startsWith("Failed to create album")) setError(null);
@@ -226,12 +230,12 @@ export default function HomePage() {
       } finally {
         if (showLoading) setLoadingAlbums(false);
       }
-    };
+    }, [error]);
 
   // Fetch albums on mount
   useEffect(() => {
     fetchAlbums();
-  }, []); // Run only once on mount
+  }, [fetchAlbums]);
 
   // Effect to set initial album selection and sort order from URL query parameters
   useEffect(() => {
@@ -360,16 +364,6 @@ export default function HomePage() {
        }
    };
 
-   const handleSelectAlbum = useCallback((albumId: string | null) => {
-     if (albumId !== selectedAlbumId) {
-        setSelectedAlbumId(albumId);
-        // Ensure sortBy has a value before updating URL
-        if (sortBy) {
-            updateUrlParams(albumId, sortBy);
-        }
-     }
-   }, [selectedAlbumId, sortBy, updateUrlParams]);
-
    // Handlers for sort and stack changes
    const handleSortChange = (newSortBy: 'date' | 'quality') => {
        if (newSortBy !== sortBy) {
@@ -474,39 +468,48 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col h-screen bg-white">
-       <Header />
-       {error && <div className="p-2 bg-red-100 text-red-700 text-center text-sm flex-shrink-0">{error}</div>}
-       <div className="flex flex-1 overflow-hidden">
-        <LeftNav
-           albums={albums}
-           selectedAlbumId={selectedAlbumId}
-           onSelectAlbum={handleSelectAlbum}
-           isLoadingAlbums={loadingAlbums}
-           onNewAlbumClick={handleNewAlbumClick}
-         />
-         {/* Only render MainContent if sortBy has been initialized */}
-         {sortBy && (
-            <MainContent
-              selectedAlbumId={selectedAlbumId}
-              onUpdateAlbumName={updateAlbumName}
-              assets={assets}
-              title={mainTitle}
-              isLoadingAssets={loadingAssets}
-              sortBy={sortBy}
-              stackSimilar={stackSimilar}
-              onSortChange={handleSortChange}
-              onStackToggle={handleStackToggle}
-              onAddPhotosClick={() => setIsUploadModalOpen(true)}
-            />
-         )}
+         <Header />
+         {error && <div className="p-2 bg-red-100 text-red-700 text-center text-sm flex-shrink-0">{error}</div>}
+         <div className="flex flex-1 overflow-hidden">
+          <LeftNav
+             albums={albums}
+             selectedAlbumId={selectedAlbumId}
+             isLoadingAlbums={loadingAlbums}
+             onNewAlbumClick={handleNewAlbumClick}
+           />
+           {/* Only render MainContent if sortBy has been initialized */}
+           {sortBy && (
+              <MainContent
+                selectedAlbumId={selectedAlbumId}
+                onUpdateAlbumName={updateAlbumName}
+                assets={assets}
+                title={mainTitle}
+                isLoadingAssets={loadingAssets}
+                sortBy={sortBy}
+                stackSimilar={stackSimilar}
+                onSortChange={handleSortChange}
+                onStackToggle={handleStackToggle}
+                onAddPhotosClick={() => setIsUploadModalOpen(true)}
+              />
+           )}
+        </div>
+        <UploadModal
+          isOpen={isUploadModalOpen}
+          onClose={() => setIsUploadModalOpen(false)}
+          onUpload={handleUpload}
+          albumName={selectedAlbum?.name}
+          uploadProgress={uploadProgress ?? undefined}
+        />
       </div>
-      <UploadModal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        onUpload={handleUpload}
-        albumName={selectedAlbum?.name}
-        uploadProgress={uploadProgress ?? undefined}
-      />
-    </div>
+  );
+}
+
+// --- Main Page Component ---
+export default function HomePage() {
+  return (
+    // Wrap the client component that uses the hooks in Suspense
+    <Suspense fallback={<div>Loading page...</div>}>
+      <PhotosApp />
+    </Suspense>
   );
 }
