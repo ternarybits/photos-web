@@ -59,8 +59,14 @@ export default function UploadModal({ isOpen, onClose, onUpload, albumName, uplo
     const showProgress = isUploading && uploadProgress !== undefined && uploadProgress >= 0;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+        <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+            onClick={onClose}
+        >
+            <div
+                className="bg-white rounded-lg shadow-xl max-w-2xl w-full"
+                onClick={(e) => e.stopPropagation()}
+            >
                 {/* Header */}
                 <div className="flex justify-between items-center p-4 border-b">
                     <h2 className="text-xl font-semibold">
