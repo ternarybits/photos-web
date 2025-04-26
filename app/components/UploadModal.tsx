@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { X } from 'lucide-react';
 
 interface UploadModalProps {
@@ -53,6 +53,26 @@ export default function UploadModal({ isOpen, onClose, onUpload, albumName, uplo
             setSelectedFiles(null);
         }
     };
+
+    // Effect to handle Escape key press
+    useEffect(() => {
+        // Function to call on key down
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        // Add event listener only when the modal is open
+        if (isOpen) {
+            document.addEventListener('keydown', handleKeyDown);
+        }
+
+        // Cleanup function to remove the event listener
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isOpen, onClose]); // Re-run effect if isOpen or onClose changes
 
     if (!isOpen) return null;
 
