@@ -19,6 +19,7 @@ const photosClient = new Photos({
 interface MainContentProps {
   selectedAlbumId: string | null;
   onUpdateAlbumName: (albumId: string, newName: string) => Promise<boolean>;
+  onDeleteAlbum: (albumId: string) => Promise<void>;
   assets: Photos.AssetResponse[];
   title: string;
   isLoadingAssets: boolean;
@@ -44,6 +45,7 @@ const Header = () => (
 const MainContent: React.FC<MainContentProps> = ({
     selectedAlbumId,
     onUpdateAlbumName,
+    onDeleteAlbum,
     assets,
     title,
     isLoadingAssets,
@@ -173,8 +175,19 @@ const MainContent: React.FC<MainContentProps> = ({
                  </button>
              </div>
           </div>
-          {/* Placeholder for actions */}
-          <button className="bg-green-500 text-white p-2 rounded text-sm cursor-pointer hover:bg-green-600" onClick={onAddPhotosClick}>Add Photos</button>
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+             <button className="bg-green-500 text-white p-2 rounded text-sm cursor-pointer hover:bg-green-600" onClick={onAddPhotosClick}>Add Photos</button>
+             {/* Conditionally render Delete Album button */}
+             {selectedAlbumId && (
+                 <button
+                     className="bg-red-500 text-white p-2 rounded text-sm cursor-pointer hover:bg-red-600"
+                     onClick={() => onDeleteAlbum(selectedAlbumId)}
+                 >
+                     Delete Album
+                 </button>
+             )}
+          </div>
         </div>
         {/* Use AssetGrid component */}
         <div className="flex-grow overflow-y-auto">
@@ -407,6 +420,45 @@ function PhotosApp() {
      }
    };
 
+   // Handler to delete an album
+   const handleDeleteAlbum = async (albumId: string) => {
+       if (!albumId) return;
+
+       const albumToDelete = albums.find(a => a.id === albumId);
+       if (!albumToDelete) {
+           setError("Could not find album to delete.");
+           return;
+       }
+
+       // Confirmation dialog
+       if (!window.confirm(`Are you sure you want to delete the album "${albumToDelete.name}"? This cannot be undone.`)) {
+           return;
+       }
+
+       setError(null);
+       // Consider adding a specific loading state for deletion if needed
+       try {
+           console.log(`Deleting album: ${albumId}`);
+           await photosClient.albums.delete(albumId);
+           console.log(`Album ${albumId} deleted.`);
+
+           // Refresh albums list
+           await fetchAlbums(false);
+
+           // Navigate back to All Photos
+           // Setting state will trigger the useEffect for URL update
+           setSelectedAlbumId(null);
+           // Explicitly update URL immediately (though useEffect should handle it too)
+           updateUrlParams(null, sortBy ?? 'date'); 
+
+       } catch (err) {
+           console.error(`Error deleting album ${albumId}:`, err);
+           setError(`Failed to delete album "${albumToDelete.name}".`);
+           // Optionally re-fetch albums to ensure consistency even on error
+           // await fetchAlbums(false);
+       }
+   };
+
    const selectedAlbum = albums.find(album => album.id === selectedAlbumId);
    const mainTitle = selectedAlbum ? selectedAlbum.name : "All Photos";
 
@@ -479,6 +531,7 @@ function PhotosApp() {
               <MainContent
                 selectedAlbumId={selectedAlbumId}
                 onUpdateAlbumName={updateAlbumName}
+                onDeleteAlbum={handleDeleteAlbum}
                 assets={assets}
                 title={mainTitle}
                 isLoadingAssets={loadingAssets}
