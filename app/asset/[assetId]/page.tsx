@@ -30,6 +30,7 @@ const AssetImage: React.FC<AssetImageProps> = ({ asset }) => {
           alt={`Asset ${asset.id}`}
           fill
           priority
+          sizes="100vw"
           className="object-contain"
           onError={() => {
             console.error(`Error loading image for asset ${asset.id}:`, asset.thumbnail_url);
