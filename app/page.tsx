@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Photos from 'photos';
-import Link from 'next/link';
-import Image from 'next/image';
-import { ImageIcon } from 'lucide-react';
 import UploadModal from './components/UploadModal';
+import LeftNav from './components/LeftNav';
+import AssetGrid from './components/AssetGrid';
 
 // Initialize the Photos SDK client
 // Note: Authentication details might be needed later.
@@ -15,32 +15,6 @@ const photosClient = new Photos({
 });
 
 // --- Component Prop Types ---
-// Removed HeaderProps
-
-interface AlbumListProps {
-  albums: Photos.AlbumResponse[];
-  selectedAlbumId: string | null;
-  onSelectAlbum: (albumId: string | null) => void;
-  isLoading: boolean;
-}
-
-interface LeftNavProps {
-  albums: Photos.AlbumResponse[];
-  selectedAlbumId: string | null;
-  onSelectAlbum: (albumId: string | null) => void;
-  isLoadingAlbums: boolean;
-  onNewAlbumClick: () => void;
-}
-
-interface AssetThumbnailProps {
-    asset: Photos.AssetResponse;
-}
-
-interface AssetGridProps {
-    assets: Photos.AssetResponse[];
-    isLoadingAssets: boolean;
-    sortBy: 'date' | 'quality';
-}
 
 interface MainContentProps {
   selectedAlbumId: string | null;
@@ -65,207 +39,6 @@ const Header = () => (
     <div className="absolute top-4 right-4">Profile</div>
   </header>
 );
-
-// Define AlbumList component before LeftNav
-const AlbumList: React.FC<AlbumListProps> = ({ albums, selectedAlbumId, onSelectAlbum, isLoading }) => (
-   <ul className="overflow-y-auto flex-grow">
-    {isLoading ? (
-      <li className="p-1 text-gray-500 italic">Loading albums...</li>
-    ) : (
-      <>
-        <li
-          key="all"
-          className={`p-1 hover:bg-gray-200 rounded cursor-pointer ${!selectedAlbumId ? 'bg-gray-200 font-semibold' : ''}`}
-          onClick={() => onSelectAlbum(null)}
-        >
-          All Photos
-        </li>
-        {albums.map((album) => (
-          <li
-            key={album.id}
-            className={`p-1 hover:bg-gray-200 rounded cursor-pointer truncate ${selectedAlbumId === album.id ? 'bg-gray-200 font-semibold' : ''}`}
-            onClick={() => onSelectAlbum(album.id)}
-            title={album.name}
-          >
-            {album.name}
-          </li>
-        ))}
-        {albums.length === 0 && !isLoading && (
-            <li className="p-1 text-gray-500 italic">No albums found.</li>
-        )}
-      </>
-    )}
-  </ul>
-);
-
-// Define LeftNav, which uses AlbumList
-const LeftNav: React.FC<LeftNavProps> = ({
-    albums,
-    selectedAlbumId,
-    onSelectAlbum,
-    isLoadingAlbums,
-    onNewAlbumClick
-}) => (
-  <nav className="w-64 bg-gray-50 p-4 border-r flex flex-col flex-shrink-0">
-    <button
-        className="w-full bg-blue-500 text-white p-2 rounded mb-4 flex-shrink-0 text-sm hover:bg-blue-600 cursor-pointer"
-        onClick={onNewAlbumClick}
-    >
-        New Album
-    </button>
-    <h2 className="text-lg font-medium mb-2 flex-shrink-0">Albums</h2>
-    <AlbumList
-        albums={albums}
-        selectedAlbumId={selectedAlbumId}
-        onSelectAlbum={onSelectAlbum}
-        isLoading={isLoadingAlbums}
-    />
-  </nav>
-);
-
-// Define AssetThumbnail component using Next/Image
-const AssetThumbnail: React.FC<AssetThumbnailProps> = ({ asset }) => {
-    const [imgError, setImgError] = useState(false);
-    const thumbnailUrl = imgError ? null : (asset.thumbnail_url || null);
-
-    return (
-        <Link href={`/asset/${asset.id}`} passHref>
-            <div
-                className="bg-gray-200 aspect-square flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:ring-2 ring-blue-500 rounded overflow-hidden relative" // Added relative for fill layout
-                title={`Asset ID: ${asset.id}`} // Tooltip for ID
-            >
-                {thumbnailUrl ? (
-                    <Image
-                        src={thumbnailUrl}
-                        alt={`Thumbnail for asset ${asset.id}`}
-                        fill // Use fill layout
-                        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw" // Optional: Provide sizes for optimization
-                        className="object-cover" // Ensure image covers the div
-                        onError={() => {
-                            console.error(`Error loading image for asset ${asset.id}:`, asset.thumbnail_url);
-                            setImgError(true);
-                        }}
-                    />
-                ) : (
-                    <div className="flex items-center justify-center w-full h-full">
-                        <ImageIcon className="w-12 h-12 text-gray-400" />
-                    </div>
-                )}
-            </div>
-        </Link>
-    );
-};
-
-// Define AssetGrid component
-const AssetGrid: React.FC<AssetGridProps> = ({ assets, isLoadingAssets, sortBy }) => {
-    if (isLoadingAssets) {
-        return (
-            <div className="flex justify-center items-center h-64">
-                <p className="text-gray-500">Loading photos...</p> {/* Replace with spinner later */}
-            </div>
-        );
-    }
-
-    if (assets.length === 0) {
-        return <p className="col-span-full text-center text-gray-500 mt-4">No photos found.</p>;
-    }
-
-    // Sort assets based on sortBy prop
-    const sortedAssets = [...assets].sort((a, b) => {
-        if (sortBy === 'date') {
-            // Sort by local_datetime in descending order (newest first)
-            return new Date(b.local_datetime).getTime() - new Date(a.local_datetime).getTime();
-        } else {
-            // Sort by quality score in descending order (highest first)
-            // Use the first metric value as quality score, or fallback to 0 if no metrics
-            const aScore = a.metrics ? Object.values(a.metrics)[0] || 0 : 0;
-            const bScore = b.metrics ? Object.values(b.metrics)[0] || 0 : 0;
-            return (bScore as number) - (aScore as number);
-        }
-    });
-
-    // Group assets based on sortBy
-    const groupedAssets: { [key: string]: Photos.AssetResponse[] } = {};
-
-    if (sortBy === 'date') {
-        // Group by date (YYYY-MM-DD format)
-        sortedAssets.forEach(asset => {
-            const date = new Date(asset.local_datetime).toISOString().split('T')[0];
-            if (!groupedAssets[date]) {
-                groupedAssets[date] = [];
-            }
-            groupedAssets[date].push(asset);
-        });
-    } else {
-        // Group by quality buckets
-        const qualityBuckets = {
-            'top': sortedAssets.filter(asset => {
-                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
-                return (score as number) >= 0.99;
-            }),
-            'excellent': sortedAssets.filter(asset => {
-                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
-                return (score as number) >= 0.8 && (score as number) < 0.99;
-            }),
-            'good': sortedAssets.filter(asset => {
-                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
-                return (score as number) >= 0.6 && (score as number) < 0.8;
-            }),
-            'okay': sortedAssets.filter(asset => {
-                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
-                return (score as number) >= 0.4 && (score as number) < 0.6;
-            }),
-            'poor': sortedAssets.filter(asset => {
-                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
-                return (score as number) >= 0.2 && (score as number) < 0.4;
-            }),
-            'bad': sortedAssets.filter(asset => {
-                const score = asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0;
-                return (score as number) < 0.2;
-            })
-        };
-
-        // Only include non-empty buckets
-        Object.entries(qualityBuckets).forEach(([bucket, assets]) => {
-            if (assets.length > 0) {
-                groupedAssets[bucket] = assets;
-            }
-        });
-    }
-
-    // Format date for display
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        });
-    };
-
-    // Format quality bucket name for display
-    const formatQualityBucket = (bucket: string) => {
-        return bucket.charAt(0).toUpperCase() + bucket.slice(1);
-    };
-
-    return (
-        <div className="space-y-8">
-            {Object.entries(groupedAssets).map(([groupKey, groupAssets]) => (
-                <div key={groupKey} className="space-y-4">
-                    <h2 className="text-xl font-semibold text-gray-800 border-b pb-2">
-                        {sortBy === 'date' ? formatDate(groupKey) : formatQualityBucket(groupKey)}
-                    </h2>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                        {groupAssets.map((asset: Photos.AssetResponse) => (
-                            <AssetThumbnail key={asset.id} asset={asset} />
-                        ))}
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-};
 
 // Updated MainContent to handle inline title editing
 const MainContent: React.FC<MainContentProps> = ({
@@ -411,9 +184,15 @@ const MainContent: React.FC<MainContentProps> = ({
     );
 };
 
-export default function HomePage() {
-  // Indicate this is a client component
+// --- Extracted Client Component ---
+function PhotosApp() {
+  // Mark this component explicitly as client-side
   'use client';
+
+  // Navigation hooks
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // Use defined types for state
   const [albums, setAlbums] = useState<Photos.AlbumResponse[]>([]);
@@ -424,7 +203,8 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
 
   // Add state for sorting and stacking
-  const [sortBy, setSortBy] = useState<'date' | 'quality'>('date'); // Default to date
+  // Initialize sortBy state to null initially, will be set by useEffect
+  const [sortBy, setSortBy] = useState<'date' | 'quality' | null>(null);
   const [stackSimilar, setStackSimilar] = useState(false); // Default to off
 
   // Add state for upload modal
@@ -432,7 +212,7 @@ export default function HomePage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   // Function to fetch albums (can be reused)
-  const fetchAlbums = async (showLoading = true) => {
+  const fetchAlbums = useCallback(async (showLoading = true) => {
       if (showLoading) setLoadingAlbums(true);
       // Clear only album-related errors
       if (error === "Failed to load albums." || error?.startsWith("Failed to create album")) setError(null);
@@ -450,13 +230,31 @@ export default function HomePage() {
       } finally {
         if (showLoading) setLoadingAlbums(false);
       }
-    };
+    }, [error]);
 
   // Fetch albums on mount
   useEffect(() => {
     fetchAlbums();
-  }, []); // Run only once on mount
+  }, [fetchAlbums]);
 
+  // Effect to set initial album selection and sort order from URL query parameters
+  useEffect(() => {
+    const initialAlbumId = searchParams.get('album');
+    const initialSortBy = searchParams.get('sort') as 'date' | 'quality' | null;
+
+    // Update album ID if different from URL
+    if (initialAlbumId !== selectedAlbumId) {
+        setSelectedAlbumId(initialAlbumId);
+    }
+
+    // Update sort order if different from URL, defaulting to 'date'
+    const validSort = initialSortBy === 'quality' ? 'quality' : 'date'; // Default to date
+    if (validSort !== sortBy) {
+        setSortBy(validSort);
+    }
+
+    // Only run this effect when searchParams changes
+  }, [searchParams, selectedAlbumId, sortBy]);
 
   // Fetch assets when selectedAlbumId, loadingAlbums, or sortBy changes
   useEffect(() => {
@@ -504,7 +302,10 @@ export default function HomePage() {
             setAssets([]);
             // Clear localStorage on error?
             if (typeof window !== 'undefined') {
-                 try { localStorage.removeItem('currentAssetOrder'); } catch (e) {}
+                 try { localStorage.removeItem('currentAssetOrder'); } catch (e) {
+                    // Log or handle the error if necessary
+                    console.warn("Failed to remove item from localStorage:", e);
+                 }
             }
         } finally {
             setLoadingAssets(false);
@@ -513,9 +314,25 @@ export default function HomePage() {
     if (!loadingAlbums) { // Ensure albums (potentially empty list) are loaded before fetching assets
         fetchAssets();
     }
-   // Add sortBy to dependency array
-   }, [selectedAlbumId, loadingAlbums, error, sortBy]); // Re-run when selectedAlbumId, loadingAlbums, or sortBy changes
+   }, [selectedAlbumId, loadingAlbums, sortBy, error]);
 
+   // Helper function to update URL with current album and sort parameters
+   const updateUrlParams = useCallback((albumId: string | null, currentSortBy: 'date' | 'quality') => {
+       const current = new URLSearchParams(Array.from(searchParams.entries()));
+
+       if (!albumId) {
+           current.delete('album');
+       } else {
+           current.set('album', albumId);
+       }
+
+       // Always set the sort parameter
+       current.set('sort', currentSortBy);
+
+       const search = current.toString();
+       const query = search ? `?${search}` : "";
+       router.replace(`${pathname}${query}`);
+   }, [pathname, router, searchParams]);
 
    // Handler for the "New Album" button click
    const handleNewAlbumClick = async () => {
@@ -533,6 +350,10 @@ export default function HomePage() {
            // Re-fetch the list and select the new album
            await fetchAlbums(false);
            setSelectedAlbumId(newAlbum.id);
+           // Ensure sortBy has a value before updating URL
+           if (sortBy) {
+             updateUrlParams(newAlbum.id, sortBy);
+           }
 
        } catch (err) {
            console.error("Error creating album:", err);
@@ -543,19 +364,13 @@ export default function HomePage() {
        }
    };
 
-
-   const handleSelectAlbum = (albumId: string | null) => {
-     if (albumId !== selectedAlbumId) {
-        setSelectedAlbumId(albumId);
-     }
-   };
-
    // Handlers for sort and stack changes
    const handleSortChange = (newSortBy: 'date' | 'quality') => {
-       setSortBy(newSortBy);
-       // TODO: Re-sort existing assets locally OR potentially re-fetch with sort param if API supports it.
-       // The sorting logic should ideally happen where `displayedAssets` is determined (e.g., in AssetGrid or before passing assets down).
-       console.log("Sort changed to:", newSortBy);
+       if (newSortBy !== sortBy) {
+           setSortBy(newSortBy);
+           updateUrlParams(selectedAlbumId, newSortBy); // Update URL with new sort
+           console.log("Sort changed to:", newSortBy);
+       }
    };
 
    const handleStackToggle = () => {
@@ -653,36 +468,48 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col h-screen bg-white">
-       <Header />
-       {error && <div className="p-2 bg-red-100 text-red-700 text-center text-sm flex-shrink-0">{error}</div>}
-       <div className="flex flex-1 overflow-hidden">
-        <LeftNav
-           albums={albums}
-           selectedAlbumId={selectedAlbumId}
-           onSelectAlbum={handleSelectAlbum}
-           isLoadingAlbums={loadingAlbums}
-           onNewAlbumClick={handleNewAlbumClick}
-         />
-         <MainContent
-            selectedAlbumId={selectedAlbumId}
-            onUpdateAlbumName={updateAlbumName}
-            assets={assets}
-            title={mainTitle}
-            isLoadingAssets={loadingAssets}
-            sortBy={sortBy}
-            stackSimilar={stackSimilar}
-            onSortChange={handleSortChange}
-            onStackToggle={handleStackToggle}
-            onAddPhotosClick={() => setIsUploadModalOpen(true)}
-         />
+         <Header />
+         {error && <div className="p-2 bg-red-100 text-red-700 text-center text-sm flex-shrink-0">{error}</div>}
+         <div className="flex flex-1 overflow-hidden">
+          <LeftNav
+             albums={albums}
+             selectedAlbumId={selectedAlbumId}
+             isLoadingAlbums={loadingAlbums}
+             onNewAlbumClick={handleNewAlbumClick}
+           />
+           {/* Only render MainContent if sortBy has been initialized */}
+           {sortBy && (
+              <MainContent
+                selectedAlbumId={selectedAlbumId}
+                onUpdateAlbumName={updateAlbumName}
+                assets={assets}
+                title={mainTitle}
+                isLoadingAssets={loadingAssets}
+                sortBy={sortBy}
+                stackSimilar={stackSimilar}
+                onSortChange={handleSortChange}
+                onStackToggle={handleStackToggle}
+                onAddPhotosClick={() => setIsUploadModalOpen(true)}
+              />
+           )}
+        </div>
+        <UploadModal
+          isOpen={isUploadModalOpen}
+          onClose={() => setIsUploadModalOpen(false)}
+          onUpload={handleUpload}
+          albumName={selectedAlbum?.name}
+          uploadProgress={uploadProgress ?? undefined}
+        />
       </div>
-      <UploadModal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        onUpload={handleUpload}
-        albumName={selectedAlbum?.name}
-        uploadProgress={uploadProgress ?? undefined}
-      />
-    </div>
+  );
+}
+
+// --- Main Page Component ---
+export default function HomePage() {
+  return (
+    // Wrap the client component that uses the hooks in Suspense
+    <Suspense fallback={<div>Loading page...</div>}>
+      <PhotosApp />
+    </Suspense>
   );
 }
