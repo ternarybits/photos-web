@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Photos from 'photos'; // Assuming the SDK package is named 'photos'
 import Link from 'next/link'; // For back button and potentially nav buttons
 import Image from 'next/image';
-import { ImageIcon, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { ImageIcon, ChevronLeft, ChevronRight, Download, Info, X } from 'lucide-react';
 
 // Initialize the Photos SDK client (can potentially share instance later)
 const photosClient = new Photos({
@@ -45,6 +45,96 @@ const AssetImage: React.FC<AssetImageProps> = ({ asset }) => {
   );
 };
 
+// --- Metadata Sidebar Component ---
+interface MetadataSidebarProps {
+    isOpen: boolean;
+    onClose: () => void;
+    asset: Photos.AssetResponse | null;
+}
+
+const MetadataSidebar: React.FC<MetadataSidebarProps> = ({ isOpen, onClose, asset }) => {
+    const formatDateTime = (isoString: string | null | undefined) => {
+        if (!isoString) return 'N/A';
+        try {
+            return new Date(isoString).toLocaleString(undefined, {
+                dateStyle: 'long', 
+                timeStyle: 'short'
+            });
+        } catch {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            return 'Invalid Date';
+        }
+    };
+
+    const renderMetadata = () => {
+        if (!asset) return <p>No asset data available.</p>;
+
+        const exifData = asset.exif;
+
+        return (
+            <div className="space-y-4 text-sm">
+                {/* Basic Info - Removed filename and dimensions */}
+                <div>
+                    <h3 className="font-semibold text-gray-300 mb-1">Details</h3>
+                    <p><span className="text-gray-400">Captured:</span> {formatDateTime(asset.local_datetime)}</p>
+                    {/* Add other known fields from AssetResponse if needed */}
+                </div>
+
+                {/* EXIF Data */}
+                {exifData && typeof exifData === 'object' && Object.keys(exifData).length > 0 && (
+                    <div>
+                        <h3 className="font-semibold text-gray-300 mb-1">EXIF Data</h3>
+                        <ul className="space-y-1 list-disc list-inside text-gray-400">
+                            {Object.entries(exifData).map(([key, value]) => {
+                                // Skip rendering if the value is null
+                                if (value === null) {
+                                    return null;
+                                }
+                                return (
+                                    <li key={key} className="truncate" title={`${key}: ${String(value)}`}>
+                                        <span className="font-medium text-gray-300">{key}:</span> {String(value)}
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                )}
+                {(!exifData || typeof exifData !== 'object' || Object.keys(exifData).length === 0) && (
+                    <div>
+                         <h3 className="font-semibold text-gray-300 mb-1">EXIF Data</h3>
+                         <p className="text-gray-500 italic">No EXIF data available.</p>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    return (
+        <div
+            className={`fixed top-0 right-0 h-full w-80 bg-gray-800 text-white shadow-lg transform transition-transform duration-300 ease-in-out z-20 ${ 
+                isOpen ? 'translate-x-0' : 'translate-x-full'
+            }`}
+        >
+            {/* Sidebar Header */}
+            <div className="flex justify-between items-center p-4 border-b border-gray-600 h-16 flex-shrink-0">
+                <h2 className="text-xl font-semibold">Info</h2>
+                <button 
+                    type="button" 
+                    onClick={onClose} 
+                    className="p-1 hover:bg-gray-700 rounded-full"
+                    aria-label="Close metadata sidebar"
+                >
+                    <X size={20} />
+                </button>
+            </div>
+            {/* Sidebar Content */}
+            <div className="p-4 overflow-y-auto h-[calc(100%-4rem)]"> {/* Adjust height based on header */}
+                {renderMetadata()}
+            </div>
+        </div>
+    );
+};
+
 export default function AssetDetailPage() {
     const params = useParams();
     const router = useRouter();
@@ -55,6 +145,22 @@ export default function AssetDetailPage() {
     const [nextAssetId, setNextAssetId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    // Effect to read initial sidebar state from localStorage
+    useEffect(() => {
+        const storedState = localStorage.getItem('metadataSidebarOpen');
+        setIsSidebarOpen(storedState === 'true');
+    }, []);
+
+    // Function to toggle sidebar and update localStorage
+    const toggleSidebar = useCallback(() => {
+        setIsSidebarOpen(prev => {
+            const newState = !prev;
+            localStorage.setItem('metadataSidebarOpen', String(newState));
+            return newState;
+        });
+    }, []);
 
     useEffect(() => {
         if (!assetId) return;
@@ -153,7 +259,11 @@ export default function AssetDetailPage() {
                     <button
                         type="button"
                         className="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer"
-                    >Metadata</button>
+                        onClick={toggleSidebar}
+                        title="Show metadata"
+                    >
+                        <Info size={18} />
+                    </button>
                     {assetDetail?.download_url && (
                         <a
                             href={assetDetail.download_url}
@@ -217,6 +327,10 @@ export default function AssetDetailPage() {
                     <p>Asset not found.</p>
                  )}
             </main>
+
+            {/* Render the Metadata Sidebar */}
+            <MetadataSidebar isOpen={isSidebarOpen} onClose={toggleSidebar} asset={assetDetail} />
+
         </div>
     );
 }
