@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import Photos from 'photos'; // Assuming the SDK package is named 'photos'
 import Link from 'next/link'; // For back button and potentially nav buttons
 import Image from 'next/image';
-import { ImageIcon, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { ImageIcon, ChevronLeft, ChevronRight, Download, Info } from 'lucide-react';
+import { useMetadataSidebar } from '../context'; // Import from the PARENT layout
 
 // Initialize the Photos SDK client (can potentially share instance later)
 const photosClient = new Photos({
@@ -55,6 +56,18 @@ export default function AssetDetailPage() {
     const [nextAssetId, setNextAssetId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Get sidebar state and toggle function from context
+    const { toggleSidebar, setAssetForSidebar } = useMetadataSidebar();
+
+    // Effect to update the asset in the context when assetDetail changes
+    useEffect(() => {
+        setAssetForSidebar(assetDetail);
+        // Cleanup function to clear the asset when the page unmounts
+        return () => {
+            setAssetForSidebar(null);
+        };
+    }, [assetDetail, setAssetForSidebar]);
 
     useEffect(() => {
         if (!assetId) return;
@@ -149,11 +162,7 @@ export default function AssetDetailPage() {
             {/* Header with Back Button and Actions */}
             <header className="flex justify-between items-center mb-4 flex-shrink-0">
                  <Link href="/" className="text-blue-400 hover:text-blue-300">&larr; Back to Grid</Link>
-                 <div className="flex gap-2">
-                    <button
-                        type="button"
-                        className="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer"
-                    >Metadata</button>
+                 <div className="flex space-x-2 items-center">
                     {assetDetail?.download_url && (
                         <a
                             href={assetDetail.download_url}
@@ -165,6 +174,14 @@ export default function AssetDetailPage() {
                            <Download size={18} />
                         </a>
                     )}
+                    <button
+                        type="button"
+                        className="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer"
+                        onClick={toggleSidebar}
+                        title="Show metadata"
+                    >
+                        <Info size={18} />
+                    </button>
                  </div>
             </header>
 
@@ -217,6 +234,10 @@ export default function AssetDetailPage() {
                     <p>Asset not found.</p>
                  )}
             </main>
+
+            {/* Sidebar is now rendered by the layout */}
+            {/* <MetadataSidebar isOpen={isSidebarOpen} onClose={toggleSidebar} asset={assetDetail} /> */}
+
         </div>
     );
 }

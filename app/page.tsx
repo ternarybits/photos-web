@@ -378,15 +378,15 @@ function PhotosApp() {
            // Handle specific API errors if needed
        } finally {
            // Optional: Reset loading indicator state here
-       }
+     }
    };
 
    // Handlers for sort and stack changes
    const handleSortChange = (newSortBy: 'date' | 'quality') => {
        if (newSortBy !== sortBy) {
-           setSortBy(newSortBy);
+       setSortBy(newSortBy);
            updateUrlParams(selectedAlbumId, newSortBy); // Update URL with new sort
-           console.log("Sort changed to:", newSortBy);
+       console.log("Sort changed to:", newSortBy);
        }
    };
 
@@ -463,7 +463,7 @@ function PhotosApp() {
            setError(`Failed to delete album "${albumToDelete.name}".`);
            // Optionally re-fetch albums to ensure consistency even on error
            // await fetchAlbums(false);
-       }
+     }
    };
 
    const selectedAlbum = albums.find(album => album.id === selectedAlbumId);
@@ -524,40 +524,40 @@ function PhotosApp() {
 
   return (
     <div className="flex flex-col h-screen bg-white">
-         <Header />
-         {error && <div className="p-2 bg-red-100 text-red-700 text-center text-sm flex-shrink-0">{error}</div>}
-         <div className="flex flex-1 overflow-hidden">
-          <LeftNav
-             albums={albums}
-             selectedAlbumId={selectedAlbumId}
-             isLoadingAlbums={loadingAlbums}
-             onNewAlbumClick={handleNewAlbumClick}
-           />
+       <Header />
+       {error && <div className="p-2 bg-red-100 text-red-700 text-center text-sm flex-shrink-0">{error}</div>}
+       <div className="flex flex-1 overflow-hidden">
+        <LeftNav
+           albums={albums}
+           selectedAlbumId={selectedAlbumId}
+           isLoadingAlbums={loadingAlbums}
+           onNewAlbumClick={handleNewAlbumClick}
+         />
            {/* Only render MainContent if sortBy has been initialized */}
            {sortBy && (
-              <MainContent
-                selectedAlbumId={selectedAlbumId}
-                onUpdateAlbumName={updateAlbumName}
+         <MainContent
+            selectedAlbumId={selectedAlbumId}
+            onUpdateAlbumName={updateAlbumName}
                 onDeleteAlbum={handleDeleteAlbum}
-                assets={assets}
-                title={mainTitle}
-                isLoadingAssets={loadingAssets}
-                sortBy={sortBy}
-                stackSimilar={stackSimilar}
-                onSortChange={handleSortChange}
-                onStackToggle={handleStackToggle}
-                onAddPhotosClick={() => setIsUploadModalOpen(true)}
-              />
+            assets={assets}
+            title={mainTitle}
+            isLoadingAssets={loadingAssets}
+            sortBy={sortBy}
+            stackSimilar={stackSimilar}
+            onSortChange={handleSortChange}
+            onStackToggle={handleStackToggle}
+            onAddPhotosClick={() => setIsUploadModalOpen(true)}
+         />
            )}
-        </div>
-        <UploadModal
-          isOpen={isUploadModalOpen}
-          onClose={() => setIsUploadModalOpen(false)}
-          onUpload={handleUpload}
-          albumName={selectedAlbum?.name}
-          uploadProgress={uploadProgress ?? undefined}
-        />
       </div>
+      <UploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onUpload={handleUpload}
+        albumName={selectedAlbum?.name}
+        uploadProgress={uploadProgress ?? undefined}
+      />
+    </div>
   );
 }
 
