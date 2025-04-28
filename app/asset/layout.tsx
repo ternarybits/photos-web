@@ -1,35 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
-import Photos from 'photos'; // Import Photos SDK type
+import React, { ReactNode } from 'react'; // Removed unused imports
+// import Photos from 'photos'; // Removed unused import
 import { X } from 'lucide-react'; // Import X icon for sidebar
+import { MetadataSidebarProvider, useMetadataSidebar } from './context'; // Import provider and hook
 
-// --- Context Definition ---
-interface MetadataSidebarContextType {
-    isSidebarOpen: boolean;
-    toggleSidebar: () => void;
-    assetForSidebar: Photos.AssetResponse | null; // Add asset state
-    setAssetForSidebar: (asset: Photos.AssetResponse | null) => void; // Add setter
-}
+// --- Metadata Sidebar Component ---
+// Removed empty interface MetadataSidebarProps
 
-const MetadataSidebarContext = createContext<MetadataSidebarContextType | undefined>(undefined);
+const MetadataSidebar: React.FC = () => { // Use React.FC without props
+    const { isSidebarOpen, toggleSidebar, assetForSidebar } = useMetadataSidebar(); // Use context
 
-// Custom hook for using the context
-export function useMetadataSidebar() {
-    const context = useContext(MetadataSidebarContext);
-    if (context === undefined) {
-        throw new Error('useMetadataSidebar must be used within a MetadataSidebarProvider');
-    }
-    return context;
-}
-
-// --- Metadata Sidebar Component (Moved from page.tsx) ---
-interface MetadataSidebarProps {
-    onClose: () => void;
-    asset: Photos.AssetResponse | null;
-}
-
-const MetadataSidebar: React.FC<MetadataSidebarProps> = ({ onClose, asset }) => {
     // Format DateTime function (keep as is)
     const formatDateTime = (isoString: string | null | undefined) => {
         if (!isoString) return 'N/A';
@@ -39,23 +20,21 @@ const MetadataSidebar: React.FC<MetadataSidebarProps> = ({ onClose, asset }) => 
                 timeStyle: 'short'
             });
         } catch {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             return 'Invalid Date';
         }
     };
 
-    // Render Metadata function (keep as is, using asset.exif)
+    // Render Metadata function (uses assetForSidebar from context)
     const renderMetadata = () => {
-        // If asset is null (loading or not found), render nothing
-        if (!asset) return null;
+        if (!assetForSidebar) return null;
 
-        const exifData = asset.exif;
+        const exifData = assetForSidebar.exif;
         return (
             <div className="space-y-4 text-sm">
                 {/* Basic Info */}
                 <div>
                     <h3 className="font-semibold text-gray-300 mb-1">Details</h3>
-                    <p><span className="text-gray-400">Captured:</span> {formatDateTime(asset.local_datetime)}</p>
+                    <p><span className="text-gray-400">Captured:</span> {formatDateTime(assetForSidebar.local_datetime)}</p>
                 </div>
                 {/* EXIF Data */}
                 {exifData && typeof exifData === 'object' && Object.keys(exifData).length > 0 && (
@@ -85,7 +64,10 @@ const MetadataSidebar: React.FC<MetadataSidebarProps> = ({ onClose, asset }) => 
         );
     };
 
-    // Sidebar structure - remove positioning/transform, use props from layout
+    // Don't render if sidebar isn't open
+    if (!isSidebarOpen) return null;
+
+    // Sidebar structure
     return (
         <div className="w-80 h-full bg-gray-800 text-white flex flex-col flex-shrink-0 border-l border-gray-600">
             {/* Sidebar Header */}
@@ -93,7 +75,7 @@ const MetadataSidebar: React.FC<MetadataSidebarProps> = ({ onClose, asset }) => 
                 <h2 className="text-xl font-semibold">Info</h2>
                 <button
                     type="button"
-                    onClick={onClose}
+                    onClick={toggleSidebar} // Use toggleSidebar from context
                     className="p-1 hover:bg-gray-700 rounded-full"
                     aria-label="Close metadata sidebar"
                 >
@@ -110,41 +92,16 @@ const MetadataSidebar: React.FC<MetadataSidebarProps> = ({ onClose, asset }) => 
 
 // --- Layout Component ---
 export default function AssetLayout({ children }: { children: ReactNode }) {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [assetForSidebar, setAssetForSidebar] = useState<Photos.AssetResponse | null>(null);
-
-    // Effect to read initial sidebar state from localStorage
-    useEffect(() => {
-        const storedState = localStorage.getItem('metadataSidebarOpen');
-        setIsSidebarOpen(storedState === 'true');
-    }, []);
-
-    // Function to toggle sidebar and update localStorage
-    const toggleSidebar = useCallback(() => {
-        setIsSidebarOpen(prev => {
-            const newState = !prev;
-            localStorage.setItem('metadataSidebarOpen', String(newState));
-            return newState;
-        });
-    }, []);
-
-    const contextValue = { isSidebarOpen, toggleSidebar, assetForSidebar, setAssetForSidebar };
-
     return (
-        <MetadataSidebarContext.Provider value={contextValue}>
-            <div className="flex h-screen bg-gray-900"> {/* Apply base bg here */}
-                {/* Content Area - occupies remaining space */}
+        <MetadataSidebarProvider> {/* Wrap layout content with the provider */}
+            <div className="flex h-screen bg-gray-900">
+                {/* Content Area */}
                 <div className="flex-grow h-full overflow-hidden">
                     {children}
                 </div>
-                {/* Sidebar Area - Renders conditionally */}
-                {isSidebarOpen && (
-                    <MetadataSidebar
-                        onClose={toggleSidebar} // Pass toggle function as onClose
-                        asset={assetForSidebar} // Pass asset from context state
-                    />
-                )}
+                {/* Sidebar Area - Renders conditionally inside the component */}
+                <MetadataSidebar /> {/* No props needed, it uses context */} 
             </div>
-        </MetadataSidebarContext.Provider>
+        </MetadataSidebarProvider>
     );
 } 

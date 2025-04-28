@@ -6,7 +6,7 @@ import Photos from 'photos'; // Assuming the SDK package is named 'photos'
 import Link from 'next/link'; // For back button and potentially nav buttons
 import Image from 'next/image';
 import { ImageIcon, ChevronLeft, ChevronRight, Download, Info } from 'lucide-react';
-import { useMetadataSidebar } from '../layout'; // Import from the PARENT layout
+import { useMetadataSidebar } from '../context'; // Import from the PARENT layout
 
 // Initialize the Photos SDK client (can potentially share instance later)
 const photosClient = new Photos({
