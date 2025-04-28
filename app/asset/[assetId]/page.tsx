@@ -162,15 +162,7 @@ export default function AssetDetailPage() {
             {/* Header with Back Button and Actions */}
             <header className="flex justify-between items-center mb-4 flex-shrink-0">
                  <Link href="/" className="text-blue-400 hover:text-blue-300">&larr; Back to Grid</Link>
-                 <div className="flex gap-2">
-                    <button
-                        type="button"
-                        className="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer"
-                        onClick={toggleSidebar}
-                        title="Show metadata"
-                    >
-                        <Info size={18} />
-                    </button>
+                 <div className="flex space-x-2 items-center">
                     {assetDetail?.download_url && (
                         <a
                             href={assetDetail.download_url}
@@ -182,6 +174,14 @@ export default function AssetDetailPage() {
                            <Download size={18} />
                         </a>
                     )}
+                    <button
+                        type="button"
+                        className="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer"
+                        onClick={toggleSidebar}
+                        title="Show metadata"
+                    >
+                        <Info size={18} />
+                    </button>
                  </div>
             </header>
 
