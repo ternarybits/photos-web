@@ -1,4 +1,3 @@
-// Create new file: app/asset/[assetId]/page.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -161,6 +160,7 @@ export default function AssetDetailPage() {
                             download
                             className="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer inline-flex items-center justify-center"
                             title="Download asset"
+                            aria-label="Download asset"
                         >
                            <Download size={18} />
                         </a>
