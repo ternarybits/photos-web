@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Photos from 'photos'; // Assuming the SDK package is named 'photos'
 import Link from 'next/link'; // For back button and potentially nav buttons
 import Image from 'next/image';
-import { ImageIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ImageIcon, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 
 // Initialize the Photos SDK client (can potentially share instance later)
 const photosClient = new Photos({
@@ -155,10 +155,16 @@ export default function AssetDetailPage() {
                         type="button"
                         className="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer"
                     >Metadata</button>
-                    <button
-                        type="button"
-                        className="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer"
-                    >Download</button>
+                    {assetDetail?.download_url && (
+                        <a
+                            href={assetDetail.download_url}
+                            download
+                            className="bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer inline-flex items-center justify-center"
+                            title="Download asset"
+                        >
+                           <Download size={18} />
+                        </a>
+                    )}
                  </div>
             </header>
 
