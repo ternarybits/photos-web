@@ -1,16 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Photos from 'photos';
-import Link from 'next/link';
-import Image from 'next/image';
-import { ImageIcon } from 'lucide-react';
+import AssetThumbnail from './AssetThumbnail';
 
 // --- Component Prop Types ---
-
-interface AssetThumbnailProps {
-    asset: Photos.AssetResponse;
-}
 
 interface AssetGridProps {
     assets: Photos.AssetResponse[];
@@ -19,39 +13,6 @@ interface AssetGridProps {
 }
 
 // --- Components ---
-
-// Define AssetThumbnail component using Next/Image
-const AssetThumbnail: React.FC<AssetThumbnailProps> = ({ asset }) => {
-    const [imgError, setImgError] = useState(false);
-    const thumbnailUrl = imgError ? null : (asset.thumbnail_url + "?size=thumbnail" || null);
-
-    return (
-        <Link href={`/asset/${asset.id}`}>
-            <div
-                className="bg-gray-200 aspect-square flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:ring-2 ring-blue-500 rounded overflow-hidden relative" // Added relative for fill layout
-                title={`Asset ID: ${asset.id}`}
-            >
-                {thumbnailUrl ? (
-                    <Image
-                        src={thumbnailUrl}
-                        alt={`Thumbnail for asset ${asset.id}`}
-                        fill // Use fill layout
-                        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw" // Optional: Provide sizes for optimization
-                        className="object-cover" // Ensure image covers the div
-                        onError={() => {
-                            console.error(`Error loading image for asset ${asset.id}:`, asset.thumbnail_url);
-                            setImgError(true);
-                        }}
-                    />
-                ) : (
-                    <div className="flex items-center justify-center w-full h-full">
-                        <ImageIcon className="w-12 h-12 text-gray-400" />
-                    </div>
-                )}
-            </div>
-        </Link>
-    );
-};
 
 // Define AssetGrid component
 const AssetGrid: React.FC<AssetGridProps> = ({ assets, isLoadingAssets, sortBy }) => {

@@ -20,7 +20,7 @@ interface AssetImageProps {
 
 const AssetImage: React.FC<AssetImageProps> = ({ asset }) => {
   const [imgError, setImgError] = useState(false);
-  const imageUrl = imgError ? null : (asset.thumbnail_url + "?size=preview" || null);
+  const imageUrl = imgError ? null : ((asset.thumbnail_url + "?size=preview") || null);
 
   return (
     <div className="relative w-full h-full">
