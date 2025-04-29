@@ -23,7 +23,7 @@ interface AssetGridProps {
 // Define AssetThumbnail component using Next/Image
 const AssetThumbnail: React.FC<AssetThumbnailProps> = ({ asset }) => {
     const [imgError, setImgError] = useState(false);
-    const thumbnailUrl = imgError ? null : (asset.thumbnail_url || null);
+    const thumbnailUrl = imgError ? null : (asset.thumbnail_url + "?size=thumbnail" || null);
 
     return (
         <Link href={`/asset/${asset.id}`}>
