@@ -70,28 +70,33 @@ function PhotosApp() {
   }, [fetchAlbums]);
 
   // Effect to set initial state from URL query parameters
+  // This effect runs when the URL query string changes (e.g., initial load, back/forward navigation)
   useEffect(() => {
     const initialAlbumId = searchParams.get('album');
     const initialSortBy = searchParams.get('sort') as 'date' | 'quality' | null;
     const initialStack = searchParams.get('stack') === 'true';
 
-    // Update album ID if different from URL
+    // Update album ID state if it differs from URL
+    // Conditional check prevents unnecessary re-renders if state already matches URL
     if (initialAlbumId !== selectedAlbumId) {
         setSelectedAlbumId(initialAlbumId);
     }
 
-    // Update sort order if different from URL, defaulting to 'date'
+    // Update sort order state if it differs from URL, defaulting to 'date'
     const validSort = initialSortBy === 'quality' ? 'quality' : 'date';
     if (validSort !== sortBy) {
         setSortBy(validSort);
     }
     
-    // Update stack state if different from URL
+    // Update stack state if it differs from URL
     if (initialStack !== stackSimilar) {
         setStackSimilar(initialStack);
     }
 
-  }, [searchParams, selectedAlbumId, sortBy, stackSimilar]);
+  // ONLY depend on searchParams. The effect re-runs correctly on navigation 
+  // and initial load. Conditional state updates inside prevent infinite loops.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [searchParams]); 
 
   // Fetch assets based on state (removed search logic)
   useEffect(() => {
