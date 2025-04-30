@@ -124,7 +124,8 @@ export default function AssetDetailPage() {
         };
 
         fetchAssetDetailAndNav();
-    }, [assetId]); // Re-run if assetId changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [assetId]);
 
     // Handlers for navigation buttons - memoized
     const goToPrevious = useCallback(() => {

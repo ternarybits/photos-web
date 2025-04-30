@@ -4,6 +4,7 @@ import React from 'react';
 import Photos from 'photos'; // Assuming Photos SDK types are importable
 import Link from 'next/link'; // Import Link
 import { useSearchParams } from 'next/navigation'; // Import useSearchParams
+import { Button } from '@/components/ui/button'; // Add Button import
 
 // --- Component Prop Types ---
 
@@ -86,13 +87,14 @@ const LeftNav: React.FC<LeftNavProps> = ({
     onNewAlbumClick
 }) => (
   <nav className="w-64 bg-gray-50 p-4 border-r flex flex-col flex-shrink-0">
-    <button
-        type="button"
-        className="w-full bg-blue-500 text-white p-2 rounded mb-4 flex-shrink-0 text-sm hover:bg-blue-600 cursor-pointer"
+    <Button
+        variant="default"
+        size="lg"
+        className="w-full mb-4 flex-shrink-0"
         onClick={onNewAlbumClick}
     >
         New Album
-    </button>
+    </Button>
     <h2 className="text-lg font-medium mb-2 flex-shrink-0">Albums</h2>
     <AlbumList
         albums={albums}

@@ -7,7 +7,10 @@ import UploadModal from './components/UploadModal';
 import LeftNav from './components/LeftNav';
 import AssetGrid from './components/AssetGrid';
 import Header from './components/Header';
-import { Trash2, Upload, Layers } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Trash2, Upload } from 'lucide-react';
 
 // Initialize the Photos SDK client
 // Note: Authentication details might be needed later.
@@ -416,49 +419,59 @@ function PhotosApp() {
                     <div className="flex justify-between items-center mb-4">
                         {/* Left-aligned controls (Sort, Stack) */}
                         <div className="flex space-x-2">
-                            {/* Sort Toggle Button Group */}
-                            <div className="inline-flex items-center rounded-md border border-input bg-transparent" role="group">
-                                <button
-                                    type="button"
-                                    onClick={() => handleSortChange('date')}
-                                    disabled={sortBy === 'date'}
-                                    className={`cursor-pointer inline-flex items-center justify-center text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 px-3 rounded-l-md ${sortBy === 'date' ? 'bg-accent text-accent-foreground' : 'hover:bg-accent hover:text-accent-foreground'}`}
-                                >
-                                    Date
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => handleSortChange('quality')}
-                                    disabled={sortBy === 'quality'}
-                                    className={`cursor-pointer inline-flex items-center justify-center text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 px-3 rounded-r-md border-l border-input ${sortBy === 'quality' ? 'bg-accent text-accent-foreground' : 'hover:bg-accent hover:text-accent-foreground'}`}
-                                >
-                                    Quality
-                                </button>
-                            </div>
-                            <button
-                                onClick={handleStackToggle}
-                                aria-pressed={stackSimilar}
-                                className={`cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-9 px-3 ${stackSimilar ? 'border border-input bg-secondary text-secondary-foreground hover:bg-secondary/80' : 'border border-input bg-background hover:bg-accent hover:text-accent-foreground'}`}
+                            <ToggleGroup 
+                                type="single"
+                                variant="outline"
+                                size="sm"
+                                value={sortBy ?? undefined} // Use current sortBy state
+                                onValueChange={(value) => {
+                                    // Prevent deselecting & handle empty value
+                                    if (value === 'date' || value === 'quality') {
+                                        handleSortChange(value);
+                                    }
+                                }}
+                                aria-label="Sort by"
                             >
-                                <Layers className="mr-2 h-4 w-4" /> {stackSimilar ? 'Unstack' : 'Stack Similar'}
-                            </button>
+                                <ToggleGroupItem value="date" aria-label="Sort by date" className="px-3">
+                                    Date
+                                </ToggleGroupItem>
+                                <ToggleGroupItem value="quality" aria-label="Sort by quality" className="px-3">
+                                    Quality
+                                </ToggleGroupItem>
+                            </ToggleGroup>
+                            {/* Stack Similar Switch */}
+                            <div className="flex items-center space-x-2">
+                                <Switch 
+                                    id="stack-similar-switch"
+                                    checked={stackSimilar}
+                                    onCheckedChange={handleStackToggle} // Use onCheckedChange for Switch
+                                />
+                                <label 
+                                    htmlFor="stack-similar-switch"
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                >
+                                    Stack Similar
+                                </label>
+                            </div>
                         </div>
 
                         {/* Right-aligned controls (Add, Delete) */}
                         <div className="flex space-x-2">
-                            <button
+                            <Button
                                 onClick={() => setIsUploadModalOpen(true)}
-                                className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
+                                variant="outline"
+                                size="sm"
                             >
                                 <Upload className="mr-2 h-4 w-4" /> Add Photos
-                            </button>
+                            </Button>
                             {selectedAlbumId && (
-                                <button
+                                <Button
                                     onClick={() => handleDeleteAlbum(selectedAlbumId)}
-                                    className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground hover:bg-destructive/90 h-9 px-3"
+                                    variant="outline"
+                                    size="sm"
                                 >
                                     <Trash2 className="mr-2 h-4 w-4" /> Delete Album
-                                </button>
+                                </Button>
                             )}
                         </div>
                     </div>
