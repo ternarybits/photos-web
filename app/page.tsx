@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import Photos from 'photos';
+import { Photos } from 'photos'; 
 import UploadModal from './components/UploadModal';
 import LeftNav from './components/LeftNav';
 import AssetGrid from './components/AssetGrid';
@@ -11,7 +11,16 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Trash2, Upload } from 'lucide-react';
-import photosClient from '@/lib/photos-client';
+// Import Server Actions
+import {
+    listAlbumsAction,
+    listAssetsAction,
+    createAlbumAction,
+    updateAlbumAction,
+    deleteAlbumAction,
+    createAssetAction,
+    addAssetsToAlbumAction
+} from './actions';
 
 // --- Components ---
 
@@ -43,20 +52,20 @@ function PhotosApp() {
       // Clear only album-related errors
       if (error === "Failed to load albums." || error?.startsWith("Failed to create album")) setError(null);
       try {
-        const fetchedAlbums: Photos.AlbumResponse[] = [];
-        for await (const album of photosClient.albums.list()) {
-           fetchedAlbums.push(album as Photos.AlbumResponse);
-        }
-        fetchedAlbums.sort((a, b) => a.name.localeCompare(b.name));
-        setAlbums(fetchedAlbums);
-      } catch (err) {
+        const fetchedAlbumsArray = await listAlbumsAction();
+        // Sort the returned array directly, remove .data
+        setAlbums(fetchedAlbumsArray.sort((a, b) => a.name.localeCompare(b.name)));
+      } catch (err) { // Catch unknown error type
         console.error("Error fetching albums:", err);
-        setError("Failed to load albums.");
+        // Use error message from the thrown error in the action
+        const message = err instanceof Error ? err.message : "Failed to load albums.";
+        setError(message);
         setAlbums([]); // Clear albums on fetch error
       } finally {
         if (showLoading) setLoadingAlbums(false);
       }
-    }, [error]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
   // Fetch albums on mount
   useEffect(() => {
@@ -81,16 +90,16 @@ function PhotosApp() {
     if (validSort !== sortBy) {
         setSortBy(validSort);
     }
-    
+
     // Update stack state if it differs from URL
     if (initialStack !== stackSimilar) {
         setStackSimilar(initialStack);
     }
 
-  // ONLY depend on searchParams. The effect re-runs correctly on navigation 
+  // ONLY depend on searchParams. The effect re-runs correctly on navigation
   // and initial load. Conditional state updates inside prevent infinite loops.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [searchParams]); 
+}, [searchParams]);
 
   // Fetch assets based on state (removed search logic)
   useEffect(() => {
@@ -102,13 +111,11 @@ function PhotosApp() {
         try {
             // --- Fetch Regular Asset List --- (Removed search logic)
             const listParams = selectedAlbumId ? { album_id: selectedAlbumId } : {};
-            const assetsList: Photos.AssetResponse[] = [];
-            for await (const asset of photosClient.assets.list(listParams)) {
-                assetsList.push(asset);
-            }
-            
-            // Sort based on current sortBy state
-            fetchedAssets = [...assetsList].sort((a, b) => {
+            // Get the plain array directly from the action, remove .data
+            const assetsArray = await listAssetsAction(listParams);
+
+            // Sort the returned array directly
+            fetchedAssets = [...assetsArray].sort((a, b) => {
                  if (sortBy === 'date') {
                      // Ensure valid dates before comparison
                     const dateA = a.local_datetime ? new Date(a.local_datetime).getTime() : 0;
@@ -123,7 +130,7 @@ function PhotosApp() {
                     return 0; // Should not happen if sortBy is initialized
                  }
             });
-            
+
             // Apply stacking logic if enabled (Placeholder: Actual stacking needs implementation)
             if (stackSimilar) {
                 // TODO: Implement logic to group similar assets
@@ -138,7 +145,9 @@ function PhotosApp() {
             setAssets(fetchedAssets);
         } catch (err) {
             console.error("Error fetching assets:", err);
-            const errorMsg = `Failed to load assets.${selectedAlbumId ? ` Album ID: ${selectedAlbumId}` : ''}`;
+            // Use error message from the thrown error in the action
+            const defaultMsg = `Failed to load assets.${selectedAlbumId ? ` Album ID: ${selectedAlbumId}` : ''}`;
+            const errorMsg = err instanceof Error ? err.message : defaultMsg;
             setError(errorMsg);
             setAssets([]);
             if (typeof window !== 'undefined') {
@@ -198,8 +207,8 @@ function PhotosApp() {
       setError(null); // Clear previous errors
       try {
           console.log(`Creating album: ${newAlbumName}`);
-          // Create album with the default name
-          const newAlbum = await photosClient.albums.create({ name: newAlbumName });
+          // Replace SDK call with Server Action
+          const newAlbum = await createAlbumAction({ name: newAlbumName });
           console.log("Album created:", newAlbum);
 
           // Re-fetch the list and select the new album
@@ -212,7 +221,9 @@ function PhotosApp() {
 
       } catch (err) {
           console.error("Error creating album:", err);
-          setError(`Failed to create album "${newAlbumName}".`);
+          // Use error message from the thrown error in the action
+          const defaultMsg = `Failed to create album "${newAlbumName}".`;
+          setError(err instanceof Error ? err.message : defaultMsg);
           // Handle specific API errors if needed
       } finally {
           // Optional: Reset loading indicator state here
@@ -226,73 +237,101 @@ function PhotosApp() {
       mainTitle = selectedAlbum.name;
   }
 
-  // Handler for uploading files
+  // Handler for uploading files - Refactored for Server Actions
   const handleUpload = async (files: FileList) => {
     setError(null); // Clear any previous errors
     setUploadProgress(0); // Start progress at 0
+    const totalFiles = files.length;
+    const uploadedAssetIds: string[] = []; // Keep track of successfully uploaded asset IDs
+
     try {
-      const totalFiles = files.length;
-      // Upload each file
+      // Upload each file sequentially
       for (let i = 0; i < totalFiles; i++) {
         const file = files[i];
-        
+
         // Update progress before starting the upload for this file
         setUploadProgress(((i) / totalFiles) * 100);
 
-        // Create asset params object
-        const assetParams: Photos.AssetCreateParams = {
-          asset_data: file,
-          device_asset_id: `web-upload-${Date.now()}-${i}`, // Generate a unique ID
-          device_id: 'web-client',
-          file_created_at: new Date(file.lastModified).toISOString(),
-          file_modified_at: new Date(file.lastModified).toISOString()
-        };
+        // Create FormData for the Server Action
+        const formData = new FormData();
+        formData.append('asset_data', file);
+        formData.append('device_asset_id', `web-upload-${Date.now()}-${i}`);
+        formData.append('device_id', 'web-client');
+        formData.append('file_created_at', new Date(file.lastModified).toISOString());
+        formData.append('file_modified_at', new Date(file.lastModified).toISOString());
 
-        // Upload the asset using the SDK
-        const asset = await photosClient.assets.create(assetParams);
+        // Call the createAsset Server Action
+        const asset = await createAssetAction(formData);
+        uploadedAssetIds.push(asset.id);
 
-        // If we're in an album, add the asset to it
-        if (selectedAlbumId) {
-          await photosClient.albums.assets.add(selectedAlbumId, {
-            asset_ids: [asset.id]
-          });
-        }
-        
-        // Update progress after successful upload and potential album add
+        // Update progress after successful upload
         setUploadProgress(((i + 1) / totalFiles) * 100);
       }
 
-      // Refresh the assets list
-      const fetchedAssets: Photos.AssetResponse[] = [];
-      const listParams = selectedAlbumId ? { album_id: selectedAlbumId } : {};
-      for await (const asset of photosClient.assets.list(listParams)) {
-        fetchedAssets.push(asset);
+      // After all files are uploaded, add them to the album if one is selected
+      if (selectedAlbumId && uploadedAssetIds.length > 0) {
+        try {
+            await addAssetsToAlbumAction(selectedAlbumId, uploadedAssetIds);
+        } catch (addError) {
+            // Log the error but don't stop the whole process; assets are uploaded
+            console.error(`Error adding assets to album ${selectedAlbumId}:`, addError);
+            const addErrorMsg = addError instanceof Error ? addError.message : "Unknown error";
+            setError(`Files uploaded, but failed to add them to album ${selectedAlbum?.name || selectedAlbumId}. Error: ${addErrorMsg}`);
+            // Proceed to refresh assets anyway
+        }
       }
-      // Apply sorting after fetching new assets
-      fetchedAssets.sort((a, b) => {
-           if (sortBy === 'date') {
-               const dateA = a.local_datetime ? new Date(a.local_datetime).getTime() : 0;
-               const dateB = b.local_datetime ? new Date(b.local_datetime).getTime() : 0;
-               return dateB - dateA;
-           } else if (sortBy === 'quality') {
-               const aScore = a.metrics ? Object.values(a.metrics)[0] ?? 0 : 0;
-               const bScore = b.metrics ? Object.values(b.metrics)[0] ?? 0 : 0;
-               return (bScore as number) - (aScore as number);
-           } else {
-               return 0; // Default case
-           }
-       });
-      setAssets(fetchedAssets);
-       // Store updated list order
-       const sortedAssetIds = fetchedAssets.map(asset => asset.id);
-       if (typeof window !== 'undefined') {
-           localStorage.setItem('currentAssetOrder', JSON.stringify(sortedAssetIds));
-       }
+
+      // Refresh the assets list by calling fetchAssets again
+      if (sortBy) { // Reuse the condition from the useEffect
+          // Clear asset-related errors before fetching
+          if (error?.startsWith("Failed to load assets")) setError(null);
+          setLoadingAssets(true);
+          let refreshedAssets: Photos.AssetResponse[] = [];
+          try {
+              const listParams = selectedAlbumId ? { album_id: selectedAlbumId } : {};
+              // Get the plain array directly, remove .data
+              const assetsArray = await listAssetsAction(listParams);
+              // Re-apply sorting
+              refreshedAssets = [...assetsArray].sort((a, b) => {
+                   if (sortBy === 'date') {
+                       const dateA = a.local_datetime ? new Date(a.local_datetime).getTime() : 0;
+                       const dateB = b.local_datetime ? new Date(b.local_datetime).getTime() : 0;
+                       return dateB - dateA;
+                   } else if (sortBy === 'quality') {
+                       const aScore = a.metrics ? Object.values(a.metrics)[0] ?? 0 : 0;
+                       const bScore = b.metrics ? Object.values(b.metrics)[0] ?? 0 : 0;
+                       return (bScore as number) - (aScore as number);
+                   } else {
+                       return 0; // Default case
+                   }
+               });
+              setAssets(refreshedAssets); // Update state with the refreshed & sorted array
+              // Store updated list order
+               const sortedAssetIds = refreshedAssets.map(asset => asset.id);
+               if (typeof window !== 'undefined') {
+                   localStorage.setItem('currentAssetOrder', JSON.stringify(sortedAssetIds));
+               }
+          } catch (fetchErr) {
+               console.error("Error refreshing assets after upload:", fetchErr);
+               const fetchErrMsg = fetchErr instanceof Error ? fetchErr.message : 'Failed to refresh assets after upload.';
+               setError(fetchErrMsg);
+               setAssets([]); // Clear assets on fetch error
+               if (typeof window !== 'undefined') {
+                  try { localStorage.removeItem('currentAssetOrder'); } catch (e) { console.warn("Failed to remove item from localStorage:", e); }
+               }
+          } finally {
+              setLoadingAssets(false);
+          }
+      }
 
     } catch (err) {
       console.error('Error uploading files:', err);
-      setError('Failed to upload one or more files.');
-      throw err; // Re-throw to be caught by the modal's error handling
+      // Use error message from the thrown error in the action
+      const uploadErrMsg = err instanceof Error ? err.message : 'Failed to upload one or more files.';
+      setError(uploadErrMsg);
+      // Re-throw to be caught by the modal's error handling if needed
+      // Consider if the modal actually needs this re-throw or if setting error state is enough
+      // throw err;
     } finally {
        setUploadProgress(null); // Reset progress on completion or error
     }
@@ -317,30 +356,34 @@ function PhotosApp() {
   };
 
   // Function to update an album's name via SDK and refresh state
-  const updateAlbumName = async (albumId: string, newName: string) => {
+  const updateAlbumName = async (albumId: string, newName: string): Promise<boolean> => {
       // Basic validation
       if (!newName || !newName.trim()) {
           alert("Album name cannot be empty.");
           return false; // Indicate failure
       }
 
-      // Prevent unnecessary API call if name hasn't changed (optional)
+      const trimmedName = newName.trim();
+      // Prevent unnecessary API call if name hasn't changed
       const currentAlbum = albums.find(a => a.id === albumId);
-      if (currentAlbum && currentAlbum.name === newName.trim()) {
+      if (currentAlbum && currentAlbum.name === trimmedName) {
           return true; // Indicate success (no change needed)
       }
 
       setError(null); // Clear previous errors
       try {
-          console.log(`Updating album ${albumId} to name: ${newName.trim()}`);
-          await photosClient.albums.update(albumId, { name: newName.trim() });
+          console.log(`Updating album ${albumId} to name: ${trimmedName}`);
+          // Replace SDK call with Server Action
+          await updateAlbumAction(albumId, { name: trimmedName });
           console.log(`Album ${albumId} updated.`);
           // Refresh the album list to show the change
           await fetchAlbums(false); // Re-fetch without showing main loading spinner
           return true; // Indicate success
       } catch (err) {
           console.error(`Error updating album ${albumId}:`, err);
-          setError(`Failed to update album name for ID: ${albumId}.`);
+          // Use error message from the thrown error in the action
+          const updateErrMsg = err instanceof Error ? err.message : `Failed to update album name for ID: ${albumId}.`;
+          setError(updateErrMsg);
           return false; // Indicate failure
       }
   };
@@ -361,10 +404,11 @@ function PhotosApp() {
       }
 
       setError(null);
-      // Consider adding a specific loading state for deletion if needed
+      // Consider adding a specific loading indicator state for deletion if needed
       try {
           console.log(`Deleting album: ${albumId}`);
-          await photosClient.albums.delete(albumId);
+          // Replace SDK call with Server Action
+          await deleteAlbumAction(albumId);
           console.log(`Album ${albumId} deleted.`);
           // Refresh albums list
           await fetchAlbums(false);
@@ -378,7 +422,9 @@ function PhotosApp() {
 
       } catch (err) {
           console.error(`Error deleting album ${albumId}:`, err);
-          setError(`Failed to delete album "${albumToDelete.name}".`);
+          // Use error message from the thrown error in the action
+          const deleteErrMsg = err instanceof Error ? err.message : `Failed to delete album "${albumToDelete.name}".`;
+          setError(deleteErrMsg);
           // Optionally re-fetch albums to ensure consistency even on error
           // await fetchAlbums(false);
       }
@@ -396,11 +442,13 @@ function PhotosApp() {
            selectedAlbumId={selectedAlbumId}
            isLoadingAlbums={loadingAlbums}
            onNewAlbumClick={handleNewAlbumClick}
+           // Pass delete handler to LeftNav if needed there, or keep edit/delete controls in main panel
+           // onDeleteAlbum={handleDeleteAlbum} // Example if delete was moved to LeftNav
         />
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
            {sortBy && (
-               <> {/* Fragment to group title/controls and grid */} 
+               <> {/* Fragment to group title/controls and grid */}
                     {/* Title Area */}
                     <div className="mb-4">
                         {selectedAlbumId && selectedAlbum ? (
@@ -410,15 +458,22 @@ function PhotosApp() {
                                 onSave={updateAlbumName}
                              />
                          ) : (
-                             <h2 className="text-2xl font-semibold text-gray-900 flex-shrink-0">{mainTitle}</h2>
+                            <div className="flex items-center flex-shrink-0 min-w-0 relative" style={{ paddingBottom: '1px', paddingTop: '1px' }}>
+                                <h2
+                                    className="text-2xl font-semibold text-gray-900 flex-shrink-0 py-1"
+                                    style={{ minHeight: 'calc(1.75rem + 2px + 2px)' }} // Match EditableAlbumTitle height
+                                >
+                                    {mainTitle}
+                                </h2>
+                            </div>
                          )}
                     </div>
- 
+
                     {/* Action Buttons Row */}
                     <div className="flex justify-between items-center mb-4">
                         {/* Left-aligned controls (Sort, Stack) */}
                         <div className="flex space-x-2">
-                            <ToggleGroup 
+                            <ToggleGroup
                                 type="single"
                                 variant="outline"
                                 size="sm"
@@ -440,12 +495,12 @@ function PhotosApp() {
                             </ToggleGroup>
                             {/* Stack Similar Switch */}
                             <div className="flex items-center space-x-2">
-                                <Switch 
+                                <Switch
                                     id="stack-similar-switch"
                                     checked={stackSimilar}
                                     onCheckedChange={handleStackToggle} // Use onCheckedChange for Switch
                                 />
-                                <label 
+                                <label
                                     htmlFor="stack-similar-switch"
                                     className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                                 >
@@ -474,7 +529,7 @@ function PhotosApp() {
                             )}
                         </div>
                     </div>
- 
+
                     <AssetGrid
                         assets={assets}
                         isLoadingAssets={loadingAssets}
@@ -482,7 +537,7 @@ function PhotosApp() {
                     />
                </>
            )}
-           {/* Handle case where sortBy isn't set yet (initial load) */} 
+           {/* Handle case where sortBy isn't set yet (initial load) */}
            {!sortBy && !loadingAlbums && (
                 <div className="flex justify-center items-center h-64">
                    <p className="text-gray-500">Loading view options...</p>
@@ -526,14 +581,19 @@ function EditableAlbumTitle({ initialName, albumId, onSave }: EditableAlbumTitle
     };
 
     const handleBlur = async () => {
-        // Only save if the name actually changed
-        if (name.trim() !== initialName && name.trim() !== '') {
+        const trimmedName = name.trim();
+        // Only save if the name actually changed and is not empty
+        if (trimmedName !== initialName && trimmedName !== '') {
             setIsSaving(true);
-            const success = await onSave(albumId, name.trim());
+            const success = await onSave(albumId, trimmedName);
             if (!success) {
-                 // Revert name if save failed (optional: show error message)
-                setName(initialName);
-                 alert("Failed to save album name.");
+                 // Revert name if save failed
+                 setName(initialName);
+                 alert("Failed to save album name."); // Consider a less intrusive error display
+            } else {
+                // If save was successful, the parent component will re-fetch and
+                // pass the new initialName, triggering the useEffect to update local state.
+                // No need to manually set `name` here if `initialName` updates correctly.
             }
             setIsSaving(false);
         } else {
@@ -562,7 +622,7 @@ function EditableAlbumTitle({ initialName, albumId, onSave }: EditableAlbumTitle
                  onChange={(e) => setName(e.target.value)}
                  onBlur={handleBlur}
                  onKeyDown={handleKeyDown}
-                 className="text-2xl font-semibold text-gray-900 bg-transparent border border-gray-300 rounded px-2 py-1 outline-none focus:ring-0 w-full" 
+                 className="text-2xl font-semibold text-gray-900 bg-transparent border border-gray-300 rounded px-2 py-1 outline-none focus:ring-0 w-full"
                  disabled={isSaving} // Disable input while saving
                  aria-label="Edit album name"
              />
@@ -571,13 +631,13 @@ function EditableAlbumTitle({ initialName, albumId, onSave }: EditableAlbumTitle
 
     return (
         <div className="flex items-center group flex-shrink-0 min-w-0 relative" style={{ paddingBottom: '1px', paddingTop: '1px' }}>
-             <h2 
+             <h2
                 className="text-2xl font-semibold text-gray-900 truncate cursor-pointer hover:bg-gray-100 px-2 py-1 rounded outline-none"
-                title={name}
+                title={name} // Use state `name` for the title tooltip
                 onClick={handleEditClick}
-                style={{ minHeight: 'calc(1.75rem + 2px + 2px)' }}
+                style={{ minHeight: 'calc(1.75rem + 2px + 2px)' }} // Ensure consistent height
              >
-                  {name}
+                  {name} {/* Display current state `name` */}
               </h2>
          </div>
     );

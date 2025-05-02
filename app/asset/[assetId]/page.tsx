@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Photos from 'photos';
+import { Photos } from 'photos'; 
 import Link from 'next/link';
 import Image from 'next/image';
 import { ImageIcon, ChevronLeft, ChevronRight, Download, Info } from 'lucide-react';
 import { useMetadataSidebar } from '../context'; // Import from the PARENT layout
-import photosClient from '@/lib/photos-client';
+import { retrieveAssetAction } from '@/app/actions'; 
 
 // AssetImage component for handling image display with fallback
 interface AssetImageProps {
@@ -16,36 +16,43 @@ interface AssetImageProps {
 
 const AssetImage: React.FC<AssetImageProps> = ({ asset }) => {
   const [imgError, setImgError] = useState(false);
-  const imageUrl = imgError || !asset.thumbnail_url ? null : `${asset.thumbnail_url}?size=preview`;
+  const displayUrl = imgError || !asset.thumbnail_url ? null : `${asset.thumbnail_url}?size=preview`;
+
+  useEffect(() => {
+      // Reset error state if asset changes
+      setImgError(false);
+  }, [asset.id]);
 
   return (
-    <div className="relative w-full h-full">
-      {imageUrl ? (
-        <Image
-          src={imageUrl}
+      <div className="relative w-full h-full">
+      {displayUrl ? (
+          <Image
+          src={displayUrl}
           alt={`Asset ${asset.id}`}
           fill
           priority
-          sizes="100vw"
+          sizes="100vw" // Consider adjusting if layout constrains width significantly
           className="object-contain"
-          onError={() => {
-            console.error(`Error loading image for asset ${asset.id}:`, asset.thumbnail_url);
-            setImgError(true);
+          onError={(e) => {
+              console.error(`Error loading image for asset ${asset.id}:`, displayUrl, e);
+              // If the primary URL fails, maybe try the fallback explicitly if needed,
+              // but for simplicity, just mark as error.
+              setImgError(true);
           }}
-        />
+          />
       ) : (
-        <div className="flex items-center justify-center w-full h-full">
-          <ImageIcon className="w-24 h-24 text-gray-400" />
-        </div>
+          <div className="flex items-center justify-center w-full h-full bg-gray-800"> {/* Added background */}
+          <ImageIcon className="w-24 h-24 text-gray-500" /> {/* Adjusted color */}
+          </div>
       )}
-    </div>
+      </div>
   );
 };
 
 export default function AssetDetailPage() {
     const params = useParams();
     const router = useRouter();
-    const assetId = params.assetId as string; // Get assetId from route
+    const assetId = params.assetId as string;
 
     const [assetDetail, setAssetDetail] = useState<Photos.AssetResponse | null>(null);
     const [previousAssetId, setPreviousAssetId] = useState<string | null>(null);
@@ -71,14 +78,14 @@ export default function AssetDetailPage() {
         const fetchAssetDetailAndNav = async () => {
             setIsLoading(true);
             setError(null);
-            setAssetDetail(null); // Clear previous asset detail
-            setPreviousAssetId(null); // Clear previous/next IDs initially
+            setAssetDetail(null);
+            setPreviousAssetId(null); 
             setNextAssetId(null);
 
             try {
-                // Fetch the specific asset details
-                const detail = await photosClient.assets.retrieve(assetId);
-                setAssetDetail(detail as Photos.AssetResponse);
+                // Fetch the specific asset details using the Server Action
+                const detail = await retrieveAssetAction(assetId);
+                setAssetDetail(detail); // Already correct type from action
 
                 // --- Read order from localStorage --- 
                 if (typeof window !== 'undefined') {
@@ -112,7 +119,9 @@ export default function AssetDetailPage() {
 
             } catch (err) {
                 console.error("Error fetching asset details:", err);
-                setError(`Failed to load asset details for ID: ${assetId}`);
+                // Use error message from the thrown error in the action
+                const defaultMsg = `Failed to load asset details for ID: ${assetId}`;
+                setError(err instanceof Error ? err.message : defaultMsg);
                 setAssetDetail(null);
             } finally {
                 setIsLoading(false);
@@ -184,21 +193,21 @@ export default function AssetDetailPage() {
 
             {/* Main Content Area - Make it relative to position buttons */}
             <main className="flex-1 flex justify-center items-center overflow-hidden relative">
-                 {/* Loading Indicator */} 
+                 {/* Loading Indicator */}
                 {isLoading && (
                     <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
                 )}
-                {/* Error Message */} 
+                {/* Error Message */}
                 {error && <p className="text-red-400">{error}</p>}
-                
-                {/* Asset Display Area - Only render if not loading and no error */} 
+
+                {/* Asset Display Area - Only render if not loading and no error */}
                 {!isLoading && !error && assetDetail && (
                      <> { /* Fragment to group image container and buttons */ }
                          <div className="w-full h-[90vh] relative">
                              <AssetImage asset={assetDetail} />
                          </div>
 
-                        {/* Previous Button */} 
+                        {/* Previous Button */}
                         {previousAssetId && (
                             <button 
                                 type="button"
@@ -211,7 +220,7 @@ export default function AssetDetailPage() {
                             </button>
                         )}
 
-                        {/* Next Button */} 
+                        {/* Next Button */}
                         {nextAssetId && (
                              <button 
                                 type="button"
@@ -226,15 +235,11 @@ export default function AssetDetailPage() {
                     </>
                 )}
 
-                 {/* Not Found Message - Only render if not loading, no error, and no detail */} 
+                 {/* Not Found Message - Only render if not loading, no error, and no detail */}
                  {!isLoading && !error && !assetDetail && (
                     <p>Asset not found.</p>
                  )}
             </main>
-
-            {/* Sidebar is now rendered by the layout */}
-            {/* <MetadataSidebar isOpen={isSidebarOpen} onClose={toggleSidebar} asset={assetDetail} /> */}
-
         </div>
     );
 }

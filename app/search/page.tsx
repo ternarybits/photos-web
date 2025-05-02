@@ -2,12 +2,11 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Photos from 'photos';
+import { Photos } from 'photos';
 import Header from '../components/Header';
 import SearchResultsComponent from '../components/SearchResults';
 import { ArrowLeft } from 'lucide-react';
-import photosClient from '@/lib/photos-client';
-
+import { searchAssetsAction } from '@/app/actions';
 
 function SearchPageContent() {
   const router = useRouter();
@@ -33,19 +32,21 @@ function SearchPageContent() {
 
       try {
         console.log(`Searching for: ${query}`);
-        const searchResults = await photosClient.search.search({ query: query, threshold: 0.75 });
-        const fetchedAssets = searchResults.data.map((item: { asset: Photos.AssetResponse }) => item.asset);
+        const searchParamsForAction: Photos.SearchSearchParams = { query: query, threshold: 0.75 };
+        const fetchedAssets = await searchAssetsAction(searchParamsForAction);
         setAssets(fetchedAssets);
 
         // Store search result order (optional, similar to main page)
         const sortedAssetIds = fetchedAssets.map(asset => asset.id);
         if (typeof window !== 'undefined') {
+            // Use a different key for search order to avoid conflicts
             localStorage.setItem('currentSearchOrder', JSON.stringify(sortedAssetIds));
         }
 
       } catch (err) {
         console.error("Error performing search:", err);
-        setError(`Failed to search for "${query}".`);
+        const defaultMsg = `Failed to search for "${query}".`;
+        setError(err instanceof Error ? err.message : defaultMsg);
         setAssets([]);
          if (typeof window !== 'undefined') {
             try { localStorage.removeItem('currentSearchOrder'); } catch (e) { console.warn("Failed to remove item from localStorage:", e); }
@@ -78,7 +79,7 @@ function SearchPageContent() {
 
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
-           {/* Back Button and Title */} 
+           {/* Back Button and Title */}
            <div className="flex justify-between items-center mb-4">
                <div className="flex items-center space-x-2">
                    <button
