@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
       {
         hostname: "photos-api-a5uw.onrender.com",
       },
+      {
+        hostname: "localhost",
+      },
     ],
   },
 };

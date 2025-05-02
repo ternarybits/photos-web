@@ -2,16 +2,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Photos from 'photos'; // Assuming the SDK package is named 'photos'
-import Link from 'next/link'; // For back button and potentially nav buttons
+import Photos from 'photos';
+import Link from 'next/link';
 import Image from 'next/image';
 import { ImageIcon, ChevronLeft, ChevronRight, Download, Info } from 'lucide-react';
 import { useMetadataSidebar } from '../context'; // Import from the PARENT layout
-
-// Initialize the Photos SDK client (can potentially share instance later)
-const photosClient = new Photos({
-  apiKey: 'dummy-api-key', // Provide a placeholder API key
-});
+import photosClient from '@/lib/photos-client';
 
 // AssetImage component for handling image display with fallback
 interface AssetImageProps {
