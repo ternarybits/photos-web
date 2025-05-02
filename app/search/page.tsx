@@ -4,14 +4,10 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Photos from 'photos';
 import Header from '../components/Header';
-import SearchResultsComponent from '../components/SearchResults'; // Use new component
+import SearchResultsComponent from '../components/SearchResults';
 import { ArrowLeft } from 'lucide-react';
+import photosClient from '@/lib/photos-client';
 
-// Initialize the Photos SDK client
-// Add a dummy apiKey to satisfy the SDK's requirement
-const photosClient = new Photos({
-  apiKey: 'dummy-api-key',
-});
 
 function SearchPageContent() {
   const router = useRouter();

@@ -11,13 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Trash2, Upload } from 'lucide-react';
-
-// Initialize the Photos SDK client
-// Note: Authentication details might be needed later.
-// Add a dummy apiKey to satisfy the SDK's requirement
-const photosClient = new Photos({
-  apiKey: 'dummy-api-key', // Provide a placeholder API key
-});
+import photosClient from '@/lib/photos-client';
 
 // --- Components ---
 
