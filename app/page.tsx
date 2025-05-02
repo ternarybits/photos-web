@@ -458,7 +458,14 @@ function PhotosApp() {
                                 onSave={updateAlbumName}
                              />
                          ) : (
-                             <h2 className="text-2xl font-semibold text-gray-900 flex-shrink-0">{mainTitle}</h2>
+                            <div className="flex items-center flex-shrink-0 min-w-0 relative" style={{ paddingBottom: '1px', paddingTop: '1px' }}>
+                                <h2
+                                    className="text-2xl font-semibold text-gray-900 flex-shrink-0 py-1"
+                                    style={{ minHeight: 'calc(1.75rem + 2px + 2px)' }} // Match EditableAlbumTitle height
+                                >
+                                    {mainTitle}
+                                </h2>
+                            </div>
                          )}
                     </div>
 

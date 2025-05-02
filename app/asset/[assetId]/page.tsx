@@ -130,7 +130,7 @@ export default function AssetDetailPage() {
 
         fetchAssetDetailAndNav();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [assetId]); // Added router to dependencies as prefetch uses it
+    }, [assetId]);
 
     // Handlers for navigation buttons - memoized
     const goToPrevious = useCallback(() => {
