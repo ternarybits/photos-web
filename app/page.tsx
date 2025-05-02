@@ -64,7 +64,8 @@ function PhotosApp() {
       } finally {
         if (showLoading) setLoadingAlbums(false);
       }
-    }, [error]); // Keep error dependency if needed for clearing
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
   // Fetch albums on mount
   useEffect(() => {
@@ -281,7 +282,7 @@ function PhotosApp() {
       }
 
       // Refresh the assets list by calling fetchAssets again
-      if (!loadingAlbums && sortBy) { // Reuse the condition from the useEffect
+      if (sortBy) { // Reuse the condition from the useEffect
           // Clear asset-related errors before fetching
           if (error?.startsWith("Failed to load assets")) setError(null);
           setLoadingAssets(true);
