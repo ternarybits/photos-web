@@ -197,3 +197,82 @@ export async function searchAssetsAction(
     );
   }
 }
+
+// --- Face Actions ---
+
+export async function listFacesAction(
+  params: Photos.FaceListParams = {}
+): Promise<Photos.FaceResponse[]> {
+  try {
+    const fetchedFaces: Photos.FaceResponse[] = [];
+    for await (const face of photosClient.faces.list(params)) {
+      fetchedFaces.push(face as Photos.FaceResponse);
+    }
+    const filterInfo = params.asset_id
+      ? ` for asset ${params.asset_id}`
+      : params.person_id
+      ? ` for person ${params.person_id}`
+      : "";
+    console.log(
+      `[Action: listFacesAction] Success - Fetched ${fetchedFaces.length} faces${filterInfo}.`
+    );
+    return fetchedFaces;
+  } catch (error) {
+    const filterInfo = params.asset_id
+      ? ` for asset ${params.asset_id}`
+      : params.person_id
+      ? ` for person ${params.person_id}`
+      : "";
+    console.error(`Server Action Error (listFacesAction${filterInfo}):`, error);
+    throw new Error(`Failed to list faces${filterInfo} via server action.`);
+  }
+}
+
+export async function retrieveFaceAction(
+  faceId: string
+): Promise<Photos.FaceResponse> {
+  try {
+    const face = await photosClient.faces.retrieve(faceId);
+    console.log(
+      `[Action: retrieveFaceAction] Success - Retrieved face ID: ${face.id}`
+    );
+    return face;
+  } catch (error) {
+    console.error(`Server Action Error (retrieveFaceAction ${faceId}):`, error);
+    throw new Error(`Failed to retrieve face ${faceId} via server action.`);
+  }
+}
+
+// --- People Actions ---
+
+export async function listPeopleAction(
+  params: Photos.PersonListParams = {}
+): Promise<Photos.PersonResponse[]> {
+  try {
+    const fetchedPeople: Photos.PersonResponse[] = [];
+    // Automatically fetches more pages as needed.
+    for await (const person of photosClient.people.list(params)) {
+      fetchedPeople.push(person as Photos.PersonResponse);
+    }
+    const filterInfo = params.album_id
+      ? ` for album ${params.album_id}`
+      : params.asset_id
+      ? ` for asset ${params.asset_id}`
+      : "";
+    console.log(
+      `[Action: listPeopleAction] Success - Fetched ${fetchedPeople.length} people${filterInfo}.`
+    );
+    return fetchedPeople;
+  } catch (error) {
+    const filterInfo = params.album_id
+      ? ` for album ${params.album_id}`
+      : params.asset_id
+      ? ` for asset ${params.asset_id}`
+      : "";
+    console.error(
+      `Server Action Error (listPeopleAction${filterInfo}):`,
+      error
+    );
+    throw new Error(`Failed to list people${filterInfo} via server action.`);
+  }
+}

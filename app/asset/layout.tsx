@@ -1,15 +1,84 @@
 'use client';
 
-import React, { ReactNode } from 'react'; // Removed unused imports
+import React, { ReactNode, useState, useEffect } from 'react'; // Added useState, useEffect
+import type { Photos } from "photos"; // Added Photos type import
 // import Photos from 'photos'; // Removed unused import
-import { X } from 'lucide-react'; // Import X icon for sidebar
+import { X } from 'lucide-react'; // ImageIconPlaceholder and Image from next/image are no longer needed here
+// import Image from 'next/image'; // No longer needed here
 import { MetadataSidebarProvider, useMetadataSidebar } from './context'; // Import provider and hook
+import { listPeopleAction, listFacesAction } from '../actions'; // Import the server action and listFacesAction
+import PersonThumbnail from '../components/PersonThumbnail'; // Corrected import path
+import FaceThumbnail from '../components/FaceThumbnail'; // Import FaceThumbnail
+
+// --- Person Thumbnail Component ---
 
 // --- Metadata Sidebar Component ---
-// Removed empty interface MetadataSidebarProps
 
-const MetadataSidebar: React.FC = () => { // Use React.FC without props
+const MetadataSidebar: React.FC = () => {
     const { isSidebarOpen, toggleSidebar, assetForSidebar } = useMetadataSidebar(); // Use context
+    const [peopleInAsset, setPeopleInAsset] = useState<Photos.PersonResponse[] | null>(null);
+    const [peopleMap, setPeopleMap] = useState<Map<string, Photos.PersonResponse>>(new Map());
+    const [isLoadingPeople, setIsLoadingPeople] = useState(false);
+    const [peopleError, setPeopleError] = useState<string | null>(null);
+
+    const [facesInAsset, setFacesInAsset] = useState<Photos.FaceResponse[] | null>(null);
+    const [isLoadingFaces, setIsLoadingFaces] = useState(false);
+    const [facesError, setFacesError] = useState<string | null>(null);
+
+    // Effect to fetch people when the asset changes
+    useEffect(() => {
+        if (assetForSidebar?.id) {
+            const fetchPeople = async () => {
+                setIsLoadingPeople(true);
+                setPeopleError(null);
+                setPeopleInAsset(null);
+                setPeopleMap(new Map());
+                try {
+                    const people = await listPeopleAction({ asset_id: assetForSidebar.id });
+                    setPeopleInAsset(people);
+                    const newMap = new Map(people.map(p => [p.id, p]));
+                    setPeopleMap(newMap);
+                } catch (error) {
+                    console.error("Failed to fetch people for asset:", error);
+                    setPeopleError("Could not load people.");
+                } finally {
+                    setIsLoadingPeople(false);
+                }
+            };
+            fetchPeople();
+        } else {
+            // Clear people if no asset is selected
+            setPeopleInAsset(null);
+            setPeopleMap(new Map());
+            setIsLoadingPeople(false);
+            setPeopleError(null);
+        }
+    }, [assetForSidebar?.id]); // Depend on asset ID
+
+    // Effect to fetch faces when the asset changes
+    useEffect(() => {
+        if (assetForSidebar?.id) {
+            const fetchFaces = async () => {
+                setIsLoadingFaces(true);
+                setFacesError(null);
+                setFacesInAsset(null);
+                try {
+                    const faces = await listFacesAction({ asset_id: assetForSidebar.id });
+                    setFacesInAsset(faces);
+                } catch (error) {
+                    console.error("Failed to fetch faces for asset:", error);
+                    setFacesError("Could not load faces.");
+                } finally {
+                    setIsLoadingFaces(false);
+                }
+            };
+            fetchFaces();
+        } else {
+            setFacesInAsset(null);
+            setIsLoadingFaces(false);
+            setFacesError(null);
+        }
+    }, [assetForSidebar?.id]);
 
     // Format DateTime function (keep as is)
     const formatDateTime = (isoString: string | null | undefined) => {
@@ -36,6 +105,43 @@ const MetadataSidebar: React.FC = () => { // Use React.FC without props
                     <h3 className="font-semibold text-gray-300 mb-1">Details</h3>
                     <p><span className="text-gray-400">Captured:</span> {formatDateTime(assetForSidebar.local_datetime)}</p>
                 </div>
+
+                {/* People Section */}
+                <div>
+                    <h3 className="font-semibold text-gray-300 mb-1">People</h3>
+                    {isLoadingPeople && <p className="text-gray-500 italic">Loading people...</p>}
+                    {peopleError && <p className="text-red-400 italic">{peopleError}</p>}
+                    {!isLoadingPeople && !peopleError && (
+                        peopleInAsset === null || peopleInAsset.length === 0 ? (
+                            <p className="text-gray-500 italic">No people identified in this asset.</p>
+                        ) : (
+                            <ul className="space-y-2">
+                                {peopleInAsset.map((person) => (
+                                    <PersonThumbnail key={person.id} person={person} />
+                                ))}
+                            </ul>
+                        )
+                    )}
+                </div>
+
+                {/* Faces Section */}
+                <div>
+                    <h3 className="font-semibold text-gray-300 mb-2">Faces in this Asset</h3>
+                    {isLoadingFaces && <p className="text-gray-500 italic">Loading faces...</p>}
+                    {facesError && <p className="text-red-400 italic">{facesError}</p>}
+                    {!isLoadingFaces && !facesError && (
+                        facesInAsset === null || facesInAsset.length === 0 ? (
+                            <p className="text-gray-500 italic">No faces identified in this asset.</p>
+                        ) : (
+                            <div className="grid grid-cols-3 gap-2">
+                                {facesInAsset.map((face) => (
+                                    <FaceThumbnail key={face.id} face={face} showPersonName={true} peopleMap={peopleMap} />
+                                ))}
+                            </div>
+                        )
+                    )}
+                </div>
+
                 {/* EXIF Data */}
                 {exifData && typeof exifData === 'object' && Object.keys(exifData).length > 0 && (
                      <div>
