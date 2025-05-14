@@ -277,6 +277,24 @@ export async function listPeopleAction(
   }
 }
 
+export async function retrievePersonAction(
+  personId: string
+): Promise<Photos.PersonResponse> {
+  try {
+    const person = await photosClient.people.retrieve(personId);
+    console.log(
+      `[Action: retrievePersonAction] Success - Retrieved person ID: ${person.id}`
+    );
+    return person;
+  } catch (error) {
+    console.error(
+      `Server Action Error (retrievePersonAction ${personId}):`,
+      error
+    );
+    throw new Error(`Failed to retrieve person ${personId} via server action.`);
+  }
+}
+
 export async function updatePersonAction(
   personId: string,
   params: Photos.PersonUpdateParams
