@@ -59,9 +59,9 @@ function PersonAssetsPage() {
         <div className="p-4 flex flex-col items-center">
             <p className="text-red-500 text-lg mb-4">Error: {error}</p>
             <Button onClick={fetchPersonAndAssets} variant="outline">Try again</Button>
-            <Link href="/people" className="mt-4">
-                <Button variant="link"><ArrowLeft className="mr-2 h-4 w-4" />Back to People</Button>
-            </Link>
+            <Button asChild variant="link" className="mt-4">
+                <Link href="/people"><ArrowLeft className="mr-2 h-4 w-4" />Back to People</Link>
+            </Button>
         </div>
     );
   }
@@ -70,9 +70,9 @@ function PersonAssetsPage() {
     return (
         <div className="p-4 flex flex-col items-center">
             <p className="text-lg mb-4">Person not found.</p>
-            <Link href="/people">
-                <Button variant="link"><ArrowLeft className="mr-2 h-4 w-4" />Back to People</Button>
-            </Link>
+            <Button asChild variant="link">
+                <Link href="/people"><ArrowLeft className="mr-2 h-4 w-4" />Back to People</Link>
+            </Button>
         </div>
     );
   }
@@ -80,11 +80,11 @@ function PersonAssetsPage() {
   return (
     <div className="p-4">
       <div className="mb-6 flex items-center">
-        <Link href="/people" className="mr-4">
-            <Button variant="outline" size="icon">
+        <Button asChild variant="outline" size="icon" className="mr-4">
+            <Link href="/people">
                 <ArrowLeft className="h-5 w-5" />
-            </Button>
-        </Link>
+            </Link>
+        </Button>
         <h1 className="text-3xl font-semibold">
           Photos of {person.name || 'Unnamed Person'}
         </h1>
