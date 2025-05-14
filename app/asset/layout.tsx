@@ -1,16 +1,12 @@
 'use client';
 
-import React, { ReactNode, useState, useEffect } from 'react'; // Added useState, useEffect
-import type { Photos } from "photos"; // Added Photos type import
-// import Photos from 'photos'; // Removed unused import
-import { X } from 'lucide-react'; // ImageIconPlaceholder and Image from next/image are no longer needed here
-// import Image from 'next/image'; // No longer needed here
-import { MetadataSidebarProvider, useMetadataSidebar } from './context'; // Import provider and hook
-import { listPeopleAction, listFacesAction } from '../actions'; // Import the server action and listFacesAction
-import PersonThumbnail from '../components/PersonThumbnail'; // Corrected import path
-import FaceThumbnail from '../components/FaceThumbnail'; // Import FaceThumbnail
-
-// --- Person Thumbnail Component ---
+import React, { ReactNode, useState, useEffect } from 'react'; 
+import type { Photos } from "photos";
+import { X } from 'lucide-react';
+import { MetadataSidebarProvider, useMetadataSidebar } from './context';
+import { listPeopleAction, listFacesAction } from '../actions';
+import PersonThumbnail from '../components/PersonThumbnail';
+import FaceThumbnail from '../components/FaceThumbnail';
 
 // --- Metadata Sidebar Component ---
 
@@ -57,19 +53,37 @@ const MetadataSidebar: React.FC = () => {
 
     // Effect to fetch faces when the asset changes
     useEffect(() => {
+        // Create an AbortController to cancel the fetch if the asset changes again
+        const abortController = new AbortController();
+        const signal = abortController.signal;
+
         if (assetForSidebar?.id) {
             const fetchFaces = async () => {
                 setIsLoadingFaces(true);
                 setFacesError(null);
                 setFacesInAsset(null);
                 try {
-                    const faces = await listFacesAction({ asset_id: assetForSidebar.id });
-                    setFacesInAsset(faces);
-                } catch (error) {
-                    console.error("Failed to fetch faces for asset:", error);
-                    setFacesError("Could not load faces.");
+                    // Pass the signal to the action if it supports it.
+                    // For now, we're focusing on the React component's logic.
+                    // The action would need to be modified to accept and use the signal.
+                    const faces = await listFacesAction({ asset_id: assetForSidebar.id }); // Removed signal argument
+                    // Check if the request was aborted before updating state
+                    if (!signal.aborted) {
+                        setFacesInAsset(faces);
+                    }
+                } catch (error: unknown) { // Changed from any to unknown
+                    if (error instanceof Error && error.name === 'AbortError') {
+                        console.log('Faces fetch aborted');
+                    } else {
+                        console.error("Failed to fetch faces for asset:", error);
+                        if (!signal.aborted) {
+                            setFacesError("Could not load faces.");
+                        }
+                    }
                 } finally {
-                    setIsLoadingFaces(false);
+                    if (!signal.aborted) {
+                        setIsLoadingFaces(false);
+                    }
                 }
             };
             fetchFaces();
@@ -78,6 +92,11 @@ const MetadataSidebar: React.FC = () => {
             setIsLoadingFaces(false);
             setFacesError(null);
         }
+
+        // Cleanup function to abort the fetch if the component unmounts or the dependency changes
+        return () => {
+            abortController.abort();
+        };
     }, [assetForSidebar?.id]);
 
     // Format DateTime function (keep as is)
