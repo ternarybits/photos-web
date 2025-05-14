@@ -40,7 +40,7 @@ const AlbumList: React.FC<AlbumListProps> = ({ albums, selectedAlbumId, isLoadin
    };
 
    return (
-      <ul className="overflow-y-auto flex-grow">
+      <ul className="overflow-y-auto">
           {isLoading ? (
               <li className="p-1 text-gray-500 italic">Loading albums...</li>
           ) : (
@@ -101,6 +101,20 @@ const LeftNav: React.FC<LeftNavProps> = ({
         selectedAlbumId={selectedAlbumId}
         isLoading={isLoadingAlbums}
     />
+    <h2 className="text-lg font-medium mb-2 mt-4 flex-shrink-0">Library</h2>
+    <ul className="overflow-y-auto">
+        <li
+            key="people"
+            className={`rounded`}
+        >
+            <Link
+                href="/people" // Link to the new people route
+                className={`block p-1 hover:bg-gray-200 rounded cursor-pointer`}
+            >
+                People
+            </Link>
+        </li>
+    </ul>
   </nav>
 );
 

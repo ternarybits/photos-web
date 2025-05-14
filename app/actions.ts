@@ -276,3 +276,24 @@ export async function listPeopleAction(
     throw new Error(`Failed to list people${filterInfo} via server action.`);
   }
 }
+
+export async function updatePersonAction(
+  personId: string,
+  params: Photos.PersonUpdateParams
+): Promise<Photos.PersonResponse> {
+  try {
+    const updatedPerson = await photosClient.people.update(personId, params);
+    console.log(
+      `[Action: updatePersonAction] Success - Updated person ID: ${updatedPerson.id}`
+    );
+    return updatedPerson;
+  } catch (error) {
+    console.error(
+      `Server Action Error (updatePersonAction ${personId}):`,
+      error
+    );
+    throw new Error(
+      `Failed to update person ${personId} with name "${params.name}" via server action.`
+    );
+  }
+}
