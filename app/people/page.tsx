@@ -1,16 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-// import Image from 'next/image'; // Image import removed as it's used in PersonCard
-import { listPeopleAction, updatePersonAction } from '../actions'; // Assuming actions.ts is in the parent directory
-import type { Photos } from 'photos';
+import { listPeopleAction, updatePersonAction } from '../actions';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner'; // For displaying notifications
-import PersonCard from './PersonCard'; // Import PersonCard
-
-export interface EditablePerson extends Photos.PersonResponse {
-  isEditing?: boolean;
-}
+import { toast } from 'sonner';
+import PersonCard from './PersonCard';
+import type { EditablePerson } from './types';
 
 function PeoplePage() {
   const [people, setPeople] = useState<EditablePerson[]>([]);

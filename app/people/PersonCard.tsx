@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import type { EditablePerson } from './page'; // Import the shared type
+import type { EditablePerson } from './types'; // Import from new types file
 
 interface PersonCardProps {
   person: EditablePerson;
@@ -17,11 +17,9 @@ interface PersonCardProps {
 function PersonCard({ person, isEditing, onEditToggle, onSaveChanges }: PersonCardProps) {
   const [newName, setNewName] = useState(person.name || '');
 
-  // Reset newName if person.name changes from parent (e.g. after save) or if edit mode is toggled off
+  // Reset newName if person.name changes or if edit mode is toggled
   useEffect(() => {
-    if (isEditing) {
-      setNewName(person.name || '');
-    } 
+    setNewName(person.name || ''); 
   }, [isEditing, person.name]);
 
   const handleSave = () => {
