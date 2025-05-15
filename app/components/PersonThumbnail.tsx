@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import type { Photos } from "photos";
 import { Image as ImageIconPlaceholder } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 // --- Person Thumbnail Component ---
 export interface PersonThumbnailProps {
@@ -45,13 +46,15 @@ export const PersonThumbnail: React.FC<PersonThumbnailProps> = ({ person }) => {
     };
 
     return (
-        <li key={person.id} className="flex items-center space-x-3 min-h-[40px]">
-            {renderThumbnail()}
-            <span className="text-gray-300 truncate">
-                {person.name || `${person.id}`}
-            </span>
+        <li key={person.id} className="min-h-[40px]">
+            <Link href={`/people/${person.id}`} className="flex items-center space-x-3 hover:bg-gray-700 p-1 rounded-md transition-colors duration-150 group">
+                {renderThumbnail()}
+                <span className="text-gray-300 truncate group-hover:text-white">
+                    {person.name || `${person.id.substring(0,8)}...`}
+                </span>
+            </Link>
         </li>
     );
 };
 
-export default PersonThumbnail; // Default export for convenience 
+export default PersonThumbnail;

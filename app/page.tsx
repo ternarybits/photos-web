@@ -86,7 +86,7 @@ function PhotosApp() {
     }
 
     // Update sort order state if it differs from URL, defaulting to 'date'
-    const validSort = initialSortBy === 'quality' ? 'quality' : 'date';
+    const validSort = initialSortBy === 'date' ? 'date' : 'quality';
     if (validSort !== sortBy) {
         setSortBy(validSort);
     }

@@ -32,37 +32,58 @@ const AssetGrid: React.FC<AssetGridProps> = ({ assets, isLoadingAssets, sortBy }
     const sortedAssets = [...assets].sort((a, b) => {
         if (sortBy === 'date') {
             // Sort by local_datetime in descending order (newest first)
-            return new Date(b.local_datetime).getTime() - new Date(a.local_datetime).getTime();
-        } else {
-            // Sort by quality score in descending order (highest first)
-            // Use the first metric value as quality score, or fallback to 0 if no metrics
-            const aScore = a.metrics ? Object.values(a.metrics)[0] || 0 : 0;
-            const bScore = b.metrics ? Object.values(b.metrics)[0] || 0 : 0;
-            return (bScore as number) - (aScore as number);
+            // Ensure valid dates before comparison
+            const dateA = a.local_datetime ? new Date(a.local_datetime).getTime() : 0;
+            const dateB = b.local_datetime ? new Date(b.local_datetime).getTime() : 0;
+            return dateB - dateA;
+        } else { // sortBy === 'quality'
+            const aScore = a.metrics?.quality_score as number | undefined;
+            const bScore = b.metrics?.quality_score as number | undefined;
+
+            // Handle undefined scores: assets with scores come before those without
+            if (aScore !== undefined && bScore === undefined) {
+                return -1; // a comes first
+            }
+            if (aScore === undefined && bScore !== undefined) {
+                return 1;  // b comes first
+            }
+            if (aScore !== undefined && bScore !== undefined) {
+                return bScore - aScore; // Sort by score descending
+            }
+            // If both are undefined, maintain original relative order (or sort by another criteria if needed)
+            // For now, if both are undefined, or if one is undefined and the other is also treated as such (e.g. null),
+            // we can compare their local_datetime as a secondary sort criterion.
+            const dateA = a.local_datetime ? new Date(a.local_datetime).getTime() : 0;
+            const dateB = b.local_datetime ? new Date(b.local_datetime).getTime() : 0;
+            return dateB - dateA; // Sort newer undefined ones first among undefined
         }
     });
 
     // Group assets based on sortBy
     const groupedAssets: { [key: string]: Photos.AssetResponse[] } = {};
+    const qualityBucketOrder = ['top', 'excellent', 'good', 'okay', 'poor', 'bad', 'unknown'];
 
     if (sortBy === 'date') {
         // Group by date (YYYY-MM-DD format)
         sortedAssets.forEach(asset => {
-            const date = new Date(asset.local_datetime).toISOString().split('T')[0];
+            const date = asset.local_datetime ? new Date(asset.local_datetime).toISOString().split('T')[0] : 'Unknown Date';
             if (!groupedAssets[date]) {
                 groupedAssets[date] = [];
             }
             groupedAssets[date].push(asset);
         });
-    } else {
-        // Group by quality buckets - Single Pass
+    } else { // sortBy === 'quality'
+        // Initialize quality buckets including 'unknown'
         const qualityBuckets: { [key: string]: Photos.AssetResponse[] } = {
-            'top': [], 'excellent': [], 'good': [], 'okay': [], 'poor': [], 'bad': []
+            'top': [], 'excellent': [], 'good': [], 'okay': [], 'poor': [], 'bad': [], 'unknown': []
         };
 
         sortedAssets.forEach(asset => {
-            const score = (asset.metrics ? Object.values(asset.metrics)[0] || 0 : 0) as number;
-            if (score >= 0.99) {
+            const score = asset.metrics?.quality_score as number | undefined;
+
+            if (score === undefined) {
+                qualityBuckets.unknown.push(asset);
+            } else if (score >= 0.99) {
                 qualityBuckets.top.push(asset);
             } else if (score >= 0.8) {
                 qualityBuckets.excellent.push(asset);
@@ -73,20 +94,23 @@ const AssetGrid: React.FC<AssetGridProps> = ({ assets, isLoadingAssets, sortBy }
             } else if (score >= 0.2) {
                 qualityBuckets.poor.push(asset);
             } else {
-                qualityBuckets.bad.push(asset);
+                qualityBuckets.bad.push(asset); // Scores below 0.2
             }
         });
 
-        // Only include non-empty buckets
-        Object.entries(qualityBuckets).forEach(([bucket, assets]) => {
-            if (assets.length > 0) {
-                groupedAssets[bucket] = assets;
+        // Add buckets to groupedAssets in the predefined order, only if they have assets
+        qualityBucketOrder.forEach(bucketName => {
+            if (qualityBuckets[bucketName] && qualityBuckets[bucketName].length > 0) {
+                groupedAssets[bucketName] = qualityBuckets[bucketName];
             }
         });
     }
 
     // Format date for display
     const formatDate = (dateString: string) => {
+        if (dateString === 'Unknown Date') {
+            return 'Unknown Date';
+        }
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', {
             weekday: 'long',
@@ -98,6 +122,7 @@ const AssetGrid: React.FC<AssetGridProps> = ({ assets, isLoadingAssets, sortBy }
 
     // Format quality bucket name for display
     const formatQualityBucket = (bucket: string) => {
+        if (bucket === 'unknown') return 'Unknown Quality';
         return bucket.charAt(0).toUpperCase() + bucket.slice(1);
     };
 

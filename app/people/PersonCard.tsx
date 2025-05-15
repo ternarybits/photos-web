@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import type { EditablePerson } from './types'; // Import from new types file
+import type { EditablePerson } from './types'; 
 
 interface PersonCardProps {
   person: EditablePerson;
@@ -38,25 +39,27 @@ function PersonCard({ person, isEditing, onEditToggle, onSaveChanges }: PersonCa
   };
 
   return (
-    <Card className="overflow-hidden border-0 shadow-none">
-      <CardContent className="p-0">
-        {person.thumbnail_face_url ? (
-          <div className="relative w-full aspect-square">
-            <Image
-              src={person.thumbnail_face_url}
-              alt={person.name || 'Person thumbnail'}
-              fill
-              sizes="(max-width: 639px) 100vw, (max-width: 767px) 50vw, (max-width: 1023px) 33vw, (max-width: 1279px) 25vw, (max-width: 1535px) 20vw, 16.67vw"
-              className="object-cover"
-            />
-          </div>
-        ) : (
-          <div className="w-full aspect-square bg-gray-200 flex items-center justify-center">
-            <span className="text-gray-500 text-sm">No Image</span>
-          </div>
-        )}
-      </CardContent>
-      <CardFooter className="flex flex-col items-center pt-0 pb-3 px-3 space-y-2">
+    <Card className="overflow-hidden border-0 shadow-none flex flex-col">
+      <Link href={`/people/${person.id}`} className="block hover:ring-2 ring-blue-500 rounded-t-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow duration-150">
+        <CardContent className="p-0">
+          {person.thumbnail_face_url ? (
+            <div className="relative w-full aspect-square">
+              <Image
+                src={person.thumbnail_face_url}
+                alt={person.name || 'Person thumbnail'}
+                fill
+                sizes="(max-width: 639px) 100vw, (max-width: 767px) 50vw, (max-width: 1023px) 33vw, (max-width: 1279px) 25vw, (max-width: 1535px) 20vw, 16.67vw"
+                className="object-cover"
+              />
+            </div>
+          ) : (
+            <div className="w-full aspect-square bg-gray-200 flex items-center justify-center">
+              <span className="text-gray-500 text-sm">No Image</span>
+            </div>
+          )}
+        </CardContent>
+      </Link>
+      <CardFooter className="flex flex-col items-center pt-0 pb-3 px-3 space-y-2 mt-auto">
         {isEditing ? (
           <>
             <Input
